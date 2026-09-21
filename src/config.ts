@@ -119,6 +119,7 @@ loadEnv();
 
 // Objeto único y mutable: el resto del código lo importa y siempre ve la versión actual.
 export const config: Config = readConfigFile();
+console.log("config: " + CONFIG_FILE + " · revisor=" + config.roles.revisor.provider + "/" + config.roles.revisor.model + " · tope=$" + config.limites.maxCosteUsdPorObjetivo);
 
 export function reloadConfig() {
   const fresh = readConfigFile();
@@ -128,9 +129,12 @@ export function reloadConfig() {
 
 // Valida lo mínimo y guarda. El workspace se guarda relativo a HOME para que el JSON sea portable.
 export function saveConfig(nueva: Config) {
+  // Archivos de versiones anteriores pueden no traer roles/secciones nuevas: se completan con los valores actuales.
+  nueva.roles = { ...config.roles, ...(nueva.roles ?? {}) };
+  nueva.limites = { ...config.limites, ...(nueva.limites ?? {}) };
   const roles: RoleName[] = ["planificador", "ejecutor", "revisor", "entrevistador"];
   for (const r of roles) {
-    const rc = nueva.roles?.[r];
+    const rc = nueva.roles[r];
     if (!rc || !rc.provider || !rc.model) throw new Error("El rol '" + r + "' necesita proveedor y modelo.");
   }
   const lim = nueva.limites ?? config.limites;
