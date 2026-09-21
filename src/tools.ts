@@ -10,6 +10,8 @@ const ROOT = () => config.workspace;
 // Todas las rutas se confinan al workspace: el modelo nunca sale de ahí.
 function safePath(p: unknown): string {
   const rel = typeof p === "string" && p.trim() ? p : ".";
+  // Nombres con restos de código o JSON ("[alert({", "foo\n", '"x"') salen de argumentos mal formados: mejor fallar que crear basura.
+  if (/[\[\]{}()<>|"'`\n\r\t]/.test(rel)) throw new Error("Ruta sospechosa: " + JSON.stringify(rel) + ". Usa una ruta relativa normal (carpeta/archivo.ext).");
   const root = ROOT();
   const abs = path.resolve(root, rel);
   if (abs !== root && !abs.startsWith(root + path.sep)) throw new Error("Ruta fuera del workspace: " + rel);

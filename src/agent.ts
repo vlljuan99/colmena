@@ -34,6 +34,7 @@ export async function runAgent(a: AgentRun): Promise<string> {
   let messages: Msg[] = [...(a.historial ?? []), { role: "user", content: a.prompt }];
   const maxSteps = a.maxSteps ?? config.limites.maxPasosPorTarea;
   const sessionId = a.runId + "-" + a.roleLabel + "-" + randomUUID().slice(0, 8);
+  let nudges = 0;
 
   for (let step = 1; step <= maxSteps; step++) {
     if (a.shouldStop?.()) return "[detenido por el usuario]";
@@ -54,7 +55,19 @@ export async function runAgent(a: AgentRun): Promise<string> {
 
     messages.push({ role: "assistant", content: res.text, toolCalls: res.toolCalls, raw: res.raw, rawProvider: provider.name });
 
-    if (!res.toolCalls.length) return res.text;
+    if (!res.toolCalls.length) {
+      const cortada = res.stopReason === "length" || res.stopReason === "max_tokens";
+      if ((cortada || !res.text.trim()) && nudges < 2) {
+        // Sin texto ni herramienta (o cortada por longitud): no aceptamos eso como informe; le pedimos que remate.
+        nudges++;
+        bus.emitEvent(a.runId, "log", a.roleLabel + ": respuesta " + (cortada ? "cortada por longitud" : "vacía") + "; se le pide que termine (" + nudges + "/2)");
+        messages.push({ role: "user", content: cortada
+          ? "Tu respuesta se cortó por longitud. Continúa exactamente donde lo dejaste, sin repetir lo anterior."
+          : "No has devuelto nada. Si la tarea está terminada, escribe ahora el informe final (resultado, archivos, verificación, pendientes). Si no, sigue trabajando con las herramientas." });
+        continue;
+      }
+      return res.text;
+    }
 
     for (const call of res.toolCalls) {
       const preview = JSON.stringify(call.args).slice(0, 200);

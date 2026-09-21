@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { PresupuestoAgotado, runAgent } from "./agent.js";
 import { bus } from "./bus.js";
-import { config } from "./config.js";
+import { config, reloadConfig } from "./config.js";
 import { CostTracker } from "./cost.js";
 import { commitTodo, crearPullRequest, crearRama, estadoRepo, gitDisponible, push, ramaActual, remotoGitHub, repoDir } from "./git.js";
 import { ejecutarPruebas, resumenPruebas } from "./pruebas.js";
@@ -99,6 +99,7 @@ function nuevoRun(objetivo: string, origen: Run["origen"]): Run {
 // heartbeats en el modelo frontier"). Ideal para cron: "¿hay algo nuevo en X?", "¿siguen pasando los tests?".
 export async function ejecutarLatido(objetivo: string, origen: Run["origen"] = "cron"): Promise<Run> {
   if (activos.size > 0) throw new Error("Ya hay un objetivo en curso; el latido se salta esta vez.");
+  reloadConfig();
   const run = nuevoRun(objetivo, origen);
   run.estado = "ejecutando";
   run.resumenPlan = "Latido: solo ejecutor, sin planificación ni revisión.";
@@ -149,6 +150,7 @@ interface ReviewJson { aprobado?: boolean; comentarios?: string }
 
 export async function ejecutarObjetivo(objetivo: string, origen: Run["origen"] = "web"): Promise<Run> {
   if (activos.size > 0) throw new Error("Ya hay un objetivo en curso. Espera a que termine o detenlo.");
+  reloadConfig();
 
   const run = nuevoRun(objetivo, origen);
   const ctl = { run, stop: false };

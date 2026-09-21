@@ -23,13 +23,23 @@ function detectar(dir: string): string | null {
   return null;
 }
 
+const IGNORAR = new Set(["node_modules", ".git", "dist", "build", "coverage", ".venv", "venv", "__pycache__", "target", "release"]);
+
+// Proyectos con tests en el workspace, buscando hasta 3 niveles (p. ej. workspace/repo/servicio/package.json).
 export function comandosDePruebas(): { dir: string; comando: string }[] {
   const ws = config.workspace;
   if (config.pruebas.comando?.trim()) return [{ dir: ws, comando: config.pruebas.comando.trim() }];
-  const dirs = [ws, ...fs.readdirSync(ws, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && !["node_modules", ".git"].includes(d.name)).map((d) => path.join(ws, d.name))];
   const out: { dir: string; comando: string }[] = [];
-  for (const d of dirs) { const c = detectar(d); if (c) out.push({ dir: d, comando: c }); if (out.length >= 3) break; }
+  const walk = (d: string, depth: number) => {
+    if (out.length >= 6) return;
+    const c = detectar(d);
+    if (c) out.push({ dir: d, comando: c });
+    if (depth >= 3) return;
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory() && !IGNORAR.has(e.name) && !e.name.startsWith(".")) walk(path.join(d, e.name), depth + 1);
+    }
+  };
+  walk(ws, 0);
   return out;
 }
 

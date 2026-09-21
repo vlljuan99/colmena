@@ -52,7 +52,8 @@ Tienes un presupuesto de unos ${config.limites.maxPasosPorTarea} pasos de herram
 Ajusta la verificación al alcance y riesgo del cambio: ejecuta el programa o los tests cuando exista algo ejecutable; no montes suites enormes salvo que una duda concreta lo justifique.
 ${REGLAS_COMUNES}
 
-Cuando termines, responde SIN herramientas con un informe breve en español: resultado, archivos creados/modificados, qué verificaste y qué queda pendiente.${guardarrailes()}`;
+Cuando termines, responde SIN herramientas con un informe breve en español: resultado, archivos creados/modificados, qué verificaste y qué queda pendiente. El informe es obligatorio: una respuesta vacía cuenta como tarea fallida.
+Si la tarea pide tests, el archivo de tests es el entregable principal: créalo y ejecútalo tú mismo antes de informar (Colmena ejecuta los tests de cada subproyecto con package.json/pytest, también los anidados).${guardarrailes()}`;
 
 export const SYSTEM_REVISOR = () => `[ROL: revisor]
 Eres el revisor de Colmena. Recibes una tarea, el informe del ejecutor que la hizo y el resultado real de los tests automáticos (los ejecuta Colmena, no el ejecutor: fíate de ese resultado, no del informe).
