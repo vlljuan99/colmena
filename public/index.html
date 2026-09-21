@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colmena</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#262b36; --text:#e6e8ee; --muted:#8b93a7; --acc:#f5b700; --ok:#3ecf8e; --bad:#ff5c5c; --warn:#ffb347; --info:#6ea8fe; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:2; flex-wrap:wrap }
+  header h1 { font-size:18px; margin:0; letter-spacing:.5px }
+  header h1 span { color:var(--acc) }
+  .roles { display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--muted) }
+  .role { border:1px solid var(--line); border-radius:6px; padding:3px 8px }
+  .role b { color:var(--text); font-weight:600 }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; background:var(--bad) }
+  .dot.on { background:var(--ok) }
+  .spacer { flex:1 }
+  .total { font-size:13px; color:var(--muted) }
+  .total b { color:var(--acc); font-size:16px }
+  main { display:grid; grid-template-columns: 340px 1fr; gap:16px; padding:16px 20px; max-width:1500px; margin:0 auto }
+  @media (max-width: 900px) { main { grid-template-columns:1fr } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:0 0 10px }
+  textarea { width:100%; min-height:110px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; resize:vertical }
+  button { background:var(--acc); color:#1a1400; border:0; border-radius:8px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer }
+  button:disabled { opacity:.45; cursor:not-allowed }
+  button.sec { background:transparent; color:var(--text); border:1px solid var(--line) }
+  .row { display:flex; gap:8px; align-items:center; margin-top:8px }
+  .banner { background:#3a2c00; border:1px solid #6b5300; color:#ffd766; padding:8px 10px; border-radius:8px; font-size:12px; margin-bottom:10px }
+  .runs { list-style:none; margin:0; padding:0; max-height:50vh; overflow:auto }
+  .runs li { padding:8px 6px; border-bottom:1px solid var(--line); cursor:pointer; font-size:13px }
+  .runs li:hover, .runs li.sel { background:#1e2330 }
+  .runs .obj { white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .runs .meta { color:var(--muted); font-size:11px; display:flex; justify-content:space-between }
+  .badge { font-size:11px; padding:2px 7px; border-radius:99px; border:1px solid var(--line); color:var(--muted); white-space:nowrap }
+  .badge.hecha, .badge.terminada { color:var(--ok); border-color:var(--ok) }
+  .badge.fallida, .badge.error { color:var(--bad); border-color:var(--bad) }
+  .badge.en_curso, .badge.ejecutando, .badge.planificando, .badge.revisando { color:var(--warn); border-color:var(--warn) }
+  .badge.detenida { color:var(--muted) }
+  .task { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; background:var(--bg) }
+  .task .t { display:flex; justify-content:space-between; gap:8px; align-items:center }
+  .task .t b { font-weight:600 }
+  .task details { margin-top:6px; color:var(--muted); font-size:12px }
+  .task pre, .final pre { white-space:pre-wrap; word-break:break-word; background:#0b0d11; padding:8px; border-radius:6px; margin:6px 0 0; color:var(--text); font-size:12px }
+  .log { height:360px; overflow:auto; background:#0b0d11; border:1px solid var(--line); border-radius:8px; padding:8px; font:12px/1.5 ui-monospace,Consolas,monospace }
+  .log div { white-space:pre-wrap; word-break:break-word }
+  .log .ts { color:var(--muted) }
+  .log .ev-agent-call { color:var(--info) }
+  .log .ev-agent-tool { color:#c9a0ff }
+  .log .ev-task-review, .log .ev-plan-ready { color:var(--warn) }
+  .log .ev-task-done, .log .ev-run-finished { color:var(--ok) }
+  .log .ev-run-error { color:var(--bad) }
+  .log .ev-agent-compact { color:#ffd766 }
+  .log .ev-git { color:#74c69d }
+  .log .ev-tests { color:#6ea8fe }
+  .gitinfo { font-size:12px; color:var(--muted); margin-top:8px; display:flex; gap:14px; flex-wrap:wrap }
+  .gitinfo b { color:var(--text) }
+  .gitinfo a { color:var(--info) }
+  .gitinfo .ok { color:var(--ok) } .gitinfo .bad { color:var(--bad) }
+  .cost table { width:100%; border-collapse:collapse; font-size:12px }
+  .cost td, .cost th { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line) }
+  .cost th { color:var(--muted); font-weight:500 }
+  .cost td.n, .cost th.n { text-align:right; font-variant-numeric:tabular-nums }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px }
+  @media (max-width:1100px) { .grid2 { grid-template-columns:1fr } }
+  .muted { color:var(--muted) }
+  .final { margin-top:12px }
+  /* ---- vista viva (infografía) ---- */
+  .vivo { grid-column: 1 / -1; }
+  .costes { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; align-items:stretch }
+  .tile { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; position:relative }
+  .tile .k { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px }
+  .tile .m { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .tile .v { font-size:20px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; margin-top:2px }
+  .tile.total { border-color:var(--acc) } .tile.total .v { color:var(--acc) }
+  .tile.astra { border-top:3px solid #74c69d } .tile.flash { border-top:3px solid #6ea8fe } .tile.claude { border-top:3px solid #d5a6ff }
+  .org { display:grid; grid-template-columns: 1fr minmax(260px, 340px) 1fr; gap:12px; align-items:center; margin-top:18px }
+  .org .side { font-size:12px; color:var(--muted); line-height:1.6 }
+  .org .side.r ul { list-style:none; margin:0; padding:0 } .org .side.r li::before { content:"✓ "; color:var(--ok) }
+  .org .side.l { text-align:right }
+  .ceo { background:var(--bg); border:2px solid var(--acc); border-radius:14px; padding:14px 16px; text-align:center; position:relative; box-shadow:0 0 0 0 rgba(245,183,0,0) ; transition:box-shadow .3s }
+  .ceo.activo { animation:pulso 1.6s infinite }
+  @keyframes pulso { 0%{box-shadow:0 0 0 0 rgba(245,183,0,.45)} 70%{box-shadow:0 0 0 14px rgba(245,183,0,0)} 100%{box-shadow:0 0 0 0 rgba(245,183,0,0)} }
+  .ceo .cara { font-size:34px; line-height:1 }
+  .ceo .n { font-weight:700; font-size:15px; margin-top:4px }
+  .ceo .m { font-size:12px; color:var(--muted) }
+  .ceo .st { margin-top:8px; font-size:12px; color:var(--warn); min-height:16px }
+  .tronco { width:2px; height:26px; background:var(--line); margin:0 auto }
+  .tronco.on { background:var(--acc) }
+  .obreras { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; position:relative; padding-top:22px }
+  .obreras::before { content:""; position:absolute; top:0; left:10%; right:10%; height:2px; background:var(--line) }
+  .obrera { position:relative; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:12px 10px 10px; text-align:center; min-height:118px; transition:border-color .2s, transform .2s }
+  .obrera::before { content:""; position:absolute; top:-22px; left:50%; width:2px; height:22px; background:var(--line) }
+  .obrera .ico { font-size:26px; line-height:1 }
+  .obrera .n { font-size:12px; font-weight:600; margin-top:6px }
+  .obrera .c { font-size:11px; color:var(--muted); margin-top:2px }
+  .obrera .t { font-size:11px; color:var(--text); margin-top:6px; min-height:28px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical }
+  .obrera .cnt { position:absolute; top:6px; right:8px; font-size:10px; color:var(--muted) }
+  .obrera.on { border-color:var(--acc); transform:translateY(-3px); box-shadow:0 6px 18px rgba(245,183,0,.15) }
+  .obrera.on::before { background:var(--acc); background:repeating-linear-gradient(to bottom, var(--acc) 0 4px, transparent 4px 8px); animation:fluye .6s linear infinite }
+  @keyframes fluye { from { background-position:0 0 } to { background-position:0 8px } }
+  .obrera.on .ico { animation:trabaja 1s ease-in-out infinite }
+  @keyframes trabaja { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .obrera.hecho { border-color:var(--ok) }
+  .flujo { display:flex; align-items:center; gap:6px; margin-top:18px; flex-wrap:wrap; justify-content:center }
+  .paso { border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:12px; color:var(--muted); background:var(--bg); display:flex; gap:6px; align-items:center; transition:all .25s }
+  .paso.on { border-color:var(--acc); color:var(--text); background:#2a2100 }
+  .paso.ok { border-color:var(--ok); color:var(--ok) }
+  .flecha { color:var(--muted); font-size:14px }
+  .estado { margin-top:12px; font:12px/1.5 ui-monospace,Consolas,monospace; color:var(--muted); background:#0b0d11; border:1px solid var(--line); border-radius:8px; padding:6px 10px; display:flex; gap:14px; flex-wrap:wrap; align-items:center }
+  .estado .led { width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block; margin-right:6px }
+  .estado .led.on { background:var(--ok); box-shadow:0 0 8px var(--ok) }
+  .estado b { color:var(--text); font-weight:600 }
+  .estado .ctx { flex:1; min-width:120px; height:6px; background:var(--line); border-radius:3px; overflow:hidden }
+  .estado .ctx i { display:block; height:100%; background:var(--info); width:0; transition:width .4s }
+  .lado { display:flex; flex-direction:column; gap:8px }
+  .nodo { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center; transition:all .25s }
+  .nodo .i { font-size:20px; line-height:1 }
+  .nodo b { color:var(--text); display:block; font-size:12px }
+  .nodo.on { border-color:var(--acc); background:#2a2100; color:var(--text); box-shadow:0 0 14px rgba(245,183,0,.2) }
+  .nodo.on .i { animation:trabaja 1s ease-in-out infinite }
+  .nodo .st { margin-left:auto; font-size:11px; color:var(--warn); white-space:nowrap }
+  .abejas { display:flex; flex-direction:column; gap:4px; margin-top:6px; text-align:left }
+  .abeja { font-size:11px; border:1px solid var(--acc); border-radius:8px; padding:4px 6px; background:#2a2100; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; animation:aparece .3s ease-out }
+  .abeja.rev { border-color:#d5a6ff; background:#241a33 }
+  .abeja.ok { border-color:var(--ok); background:#0f2a1c; color:var(--muted); animation:none }
+  .abeja .ic { display:inline-block; animation:trabaja 1s ease-in-out infinite }
+  .abeja.ok .ic { animation:none }
+  @keyframes aparece { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:none } }
+  .nagentes { font-size:12px; color:var(--muted); margin-left:8px }
+  .nagentes b { color:var(--acc) }
+  .repo { border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--bg); font-size:12px }
+  .repo .n { font-size:13px; font-weight:600; color:var(--text); display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+  .repo .n a { color:var(--info); text-decoration:none; font-weight:500; font-size:12px }
+  .repo .m { color:var(--muted); margin-top:4px; display:flex; gap:10px; flex-wrap:wrap }
+  .repo .m b { color:var(--text); font-weight:600 }
+  .repo .cambios { color:var(--warn) }
+  .repo .commits { margin-top:6px; font:11px/1.5 ui-monospace,Consolas,monospace; color:var(--muted); max-height:80px; overflow:auto }
+  .repo .commits .c { color:var(--ok) }
+  .repoopts { display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:8px; font-size:12px; color:var(--muted) }
+  .repoopts label { display:flex; gap:5px; align-items:center; cursor:pointer }
+  .repoopts input { accent-color:var(--acc) }
+  .repo select { width:auto; padding:3px 6px; font-size:12px }
+  .h247 { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:99px; padding:4px 10px; font-size:12px; color:var(--muted) }
+  .h247 .g { display:inline-block; animation:gira 4s linear infinite; color:var(--ok) }
+  @keyframes gira { to { transform:rotate(360deg) } }
+  @media (max-width: 1000px) { .org { grid-template-columns:1fr } .org .side { text-align:left } .obreras { grid-template-columns: repeat(2, 1fr) } .obreras::before { display:none } .obrera::before { display:none } }
+  /* ---- asistente de objetivos ---- */
+  .toggle { display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px; cursor:pointer }
+  .toggle input { accent-color:var(--acc) }
+  .chat { border:1px solid var(--acc); border-radius:10px; padding:10px; margin-top:8px; background:var(--bg) }
+  .chat .msgs { max-height:48vh; min-height:220px; overflow:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:8px }
+  body.chat-abierto main > aside { grid-column: 1 / -1 }
+  body.chat-abierto .vivo { display:none }
+  .chat .b { max-width:80% }
+  .chat .b.a { font-size:14px; line-height:1.5 }
+  .preguntas { display:flex; flex-direction:column; gap:8px; margin-bottom:8px }
+  .preg { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#12151c }
+  .preg label { display:block; font-size:13px; color:var(--text); margin-bottom:6px }
+  .preg label b { color:var(--acc); margin-right:6px }
+  .preg textarea { min-height:44px }
+  .chat .b { padding:8px 10px; border-radius:10px; font-size:13px; white-space:pre-wrap; word-break:break-word; max-width:92% }
+  .chat .b.a { background:#1e2330; border:1px solid var(--line); align-self:flex-start }
+  .chat .b.u { background:#2a2100; border:1px solid #6b5300; align-self:flex-end }
+  .chat .b.obj { background:#0f2a1c; border:1px solid var(--ok); align-self:stretch; max-width:100% }
+  .chat .b.obj .k { color:var(--ok); font-size:11px; text-transform:uppercase; letter-spacing:.6px; margin-bottom:4px }
+  .chat .chatin { display:flex; gap:8px; align-items:flex-end }
+  .chat .chatin textarea { min-height:56px; flex:1 }
+  .chat .pensando { color:var(--muted); font-size:12px; animation:parpadeo 1.2s infinite }
+  @keyframes parpadeo { 50% { opacity:.4 } }
+  /* ---- configuración ---- */
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:10; padding:16px }
+  .modal.open { display:flex }
+  .dialog { background:var(--panel); border:1px solid var(--line); border-radius:12px; width:min(960px,100%); max-height:92vh; display:flex; flex-direction:column }
+  .dialog header { position:static; border-radius:12px 12px 0 0; padding:12px 16px }
+  .dialog header h2 { margin:0; font-size:15px }
+  .tabs { display:flex; gap:4px; padding:8px 16px 0; border-bottom:1px solid var(--line); flex-wrap:wrap }
+  .tabs button { background:transparent; color:var(--muted); border:1px solid transparent; border-bottom:0; border-radius:8px 8px 0 0; padding:8px 12px; font-weight:500 }
+  .tabs button.on { color:var(--text); border-color:var(--line); background:var(--bg) }
+  .pane { display:none; padding:16px; overflow:auto }
+  .pane.on { display:block }
+  .dialog footer { display:flex; gap:8px; align-items:center; padding:12px 16px; border-top:1px solid var(--line) }
+  .msg { font-size:12px; color:var(--muted) }
+  .msg.err { color:var(--bad) }
+  .msg.ok { color:var(--ok) }
+  .form { display:grid; grid-template-columns: 200px 1fr; gap:10px 12px; align-items:center }
+  .form label { color:var(--muted); font-size:13px }
+  .form small { grid-column:2; color:var(--muted); font-size:11px; margin-top:-6px }
+  input[type=text], input[type=number], input[type=password], select { background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; width:100% }
+  input[type=number] { width:120px }
+  .rolefila { display:grid; grid-template-columns: 120px 150px 1fr 120px; gap:8px; align-items:center; margin-bottom:8px }
+  .rolefila span { color:var(--muted); font-size:13px }
+  table.edit { width:100%; border-collapse:collapse; font-size:13px }
+  table.edit th { text-align:left; color:var(--muted); font-weight:500; padding:4px 6px; border-bottom:1px solid var(--line) }
+  table.edit td { padding:4px 6px; border-bottom:1px solid var(--line) }
+  table.edit input[type=number] { width:90px }
+  .x { background:transparent; color:var(--bad); border:1px solid var(--line); padding:4px 8px }
+  .cronitem { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; background:var(--bg) }
+  .cronitem .g { display:grid; grid-template-columns: 1fr 140px 150px auto; gap:8px; align-items:center; margin-bottom:8px }
+  .cronitem textarea { min-height:60px }
+  .keyrow { display:grid; grid-template-columns: 170px 1fr 130px; gap:8px; align-items:center; margin-bottom:10px }
+  .keyrow .st { font-size:12px }
+  .help { font-size:12px; color:var(--muted); margin:0 0 12px }
+  .help a { color:var(--info) }
+  textarea.json { font:12px/1.5 ui-monospace,Consolas,monospace; min-height:360px }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐝 <span>Colmena</span></h1>
+  <div class="roles" id="roles"></div>
+  <div class="spacer"></div>
+  <div class="total">Coste de esta ejecución <b id="coste">$0.0000</b></div>
+  <button id="abrirConfig" class="sec" title="Roles, límites, precios, cron y claves API">⚙ Configuración</button>
+</header>
+
+<div class="modal" id="modal">
+  <div class="dialog">
+    <header><h2>⚙ Configuración</h2><div class="spacer"></div><button class="sec" id="cerrarConfig">✕</button></header>
+    <div class="tabs" id="tabs">
+      <button data-tab="roles" class="on">Roles</button>
+      <button data-tab="limites">Límites</button>
+      <button data-tab="precios">Precios</button>
+      <button data-tab="cron">Cron</button>
+      <button data-tab="gitpruebas">Git y pruebas</button>
+      <button data-tab="claves">Claves API</button>
+      <button data-tab="json">JSON</button>
+    </div>
+
+    <div class="pane on" data-pane="roles">
+      <p class="help">Cada rol puede usar un proveedor distinto. <b>effort</b> = esfuerzo de razonamiento (OpenAI <code>reasoning_effort</code> / Claude <code>output_config.effort</code>); el hilo recomienda <i>low</i> para el planificador.</p>
+      <div class="rolefila"><span></span><span>Proveedor</span><span>Modelo</span><span>Effort</span></div>
+      <div id="rolesForm"></div>
+      <datalist id="modelos"></datalist>
+      <div class="form" style="margin-top:14px">
+        <label>Carpeta workspace</label><input type="text" id="cfgWorkspace">
+        <small>Relativa a la carpeta de datos de Colmena. Todas las herramientas del ejecutor se confinan aquí.</small>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="limites">
+      <div class="form">
+        <label>Máx. tareas por objetivo</label><input type="number" id="lim_maxTareasPorObjetivo" min="1">
+        <label>Máx. pasos por tarea</label><input type="number" id="lim_maxPasosPorTarea" min="1">
+        <small>Cada paso es una llamada al modelo del ejecutor (con o sin herramienta).</small>
+        <label>Reintentos si el revisor rechaza</label><input type="number" id="lim_maxReintentosPorTarea" min="0">
+        <label>Tope de coste por objetivo (USD)</label><input type="number" id="lim_maxCosteUsdPorObjetivo" min="0" step="0.1">
+        <small>Si una ejecución supera este coste, se aborta.</small>
+        <label>Timeout de comandos (seg)</label><input type="number" id="lim_timeoutComandoSeg" min="1">
+        <label>Ejecutores en paralelo</label><input type="number" id="lim_ejecutoresParalelos" min="1" max="8">
+        <small>Tareas independientes que se ejecutan a la vez (cada una es una obrera en el esquema). La verificación (tests, revisor, commit) siempre va en serie. Con más de 1, evita objetivos en los que varias tareas toquen los mismos archivos.</small>
+        <label>Compactar contexto a partir de (tokens)</label><input type="number" id="lim_compactarTokens" min="1000" step="1000">
+        <small>Cuando una llamada supera estos tokens de entrada, se vacían resultados antiguos de herramientas y, si hace falta, el modelo resume su propio progreso y sigue con contexto limpio.</small>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="precios">
+      <p class="help">USD por millón de tokens. Los campos avanzados de cada modelo (tarifa fuera de punta, precipicio de Astra) se conservan; edítalos en la pestaña JSON.</p>
+      <table class="edit"><thead><tr><th>Modelo</th><th>Entrada</th><th>Salida</th><th>Caché (lectura)</th><th>Extras</th><th></th></tr></thead><tbody id="preciosBody"></tbody></table>
+      <div class="row"><button class="sec" id="addPrecio">+ Añadir modelo</button></div>
+    </div>
+
+    <div class="pane" data-pane="cron">
+      <p class="help">Expresión cron de 5 campos (<code>min hora día mes díasemana</code>). <b>latido</b> = solo el ejecutor barato, sin planificar ni revisar; <b>objetivo</b> = flujo completo.</p>
+      <div id="cronList"></div>
+      <div class="row"><button class="sec" id="addCron">+ Añadir tarea programada</button></div>
+    </div>
+
+    <div class="pane" data-pane="gitpruebas">
+      <h3 style="margin:0 0 8px;font-size:14px">Pruebas obligatorias</h3>
+      <p class="help">Tras cada tarea, Colmena ejecuta los tests del proyecto (los detecta por <code>package.json</code>, <code>pytest</code>, <code>go.mod</code>, <code>Cargo.toml</code>, o usa el comando que indiques). Si fallan, la tarea vuelve al ejecutor con la salida del error sin pasar por el revisor.</p>
+      <div class="form">
+        <label>Activar</label><label class="toggle" style="margin:0"><input type="checkbox" id="pr_obligatorias"> <span>ejecutar tests tras cada tarea</span></label>
+        <label>Comando de tests</label><input type="text" id="pr_comando" placeholder="vacío = detección automática (ej. npm test, python -m pytest -q)">
+        <label>Timeout (seg)</label><input type="number" id="pr_timeoutSeg" min="10">
+      </div>
+      <h3 style="margin:18px 0 8px;font-size:14px">Revisión por IA</h3>
+      <p class="help">Tras los tests, el rol <b>revisor</b> inspecciona el entregable y aprueba o devuelve la tarea. Es la parte más cara si usas un modelo grande; con DeepSeek como revisor cuesta céntimos. Desactivada, una tarea se aprueba en cuanto pasan los tests (o si no hay).</p>
+      <div class="form">
+        <label>Revisor</label><label class="toggle" style="margin:0"><input type="checkbox" id="rev_activo"> <span>revisar cada tarea con el rol revisor</span></label>
+      </div>
+      <h3 style="margin:18px 0 8px;font-size:14px">Git y GitHub</h3>
+      <p class="help">Estas opciones también están en el panel <b>Repositorio</b> de la pantalla principal (con clonado y selección de repo). Si el workspace (o su único proyecto) es un repositorio git, cada objetivo trabaja en una rama <code>colmena/…</code> y cada tarea aprobada se commitea. Push y pull request son opcionales; la PR necesita <code>GITHUB_TOKEN</code> (pestaña Claves API) y el push usa tus credenciales de git habituales.</p>
+      <div class="form">
+        <label>Git</label><label class="toggle" style="margin:0"><input type="checkbox" id="git_activo"> <span>activar integración git</span></label>
+        <label>Rama por objetivo</label><label class="toggle" style="margin:0"><input type="checkbox" id="git_ramaPorObjetivo"> <span>crear rama <code>colmena/&lt;id&gt;</code> al empezar</span></label>
+        <label>Commit por tarea</label><label class="toggle" style="margin:0"><input type="checkbox" id="git_commitPorTarea"> <span>commit automático cuando el revisor aprueba</span></label>
+        <label>Push al terminar</label><label class="toggle" style="margin:0"><input type="checkbox" id="git_push"> <span>subir la rama a <code>origin</code></span></label>
+        <label>Pull request</label><label class="toggle" style="margin:0"><input type="checkbox" id="git_pullRequest"> <span>abrir PR en GitHub con el informe final (implica push)</span></label>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="claves">
+      <p class="help">Se guardan en un archivo <code>.env</code> local en tu PC (carpeta de datos de Colmena) y nunca salen de ahí salvo hacia el proveedor correspondiente. Deja el campo vacío para no cambiar la clave.</p>
+      <div id="keysForm"></div>
+      <p class="help">Dónde conseguirlas: <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI</a> · <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek</a> · <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic</a> · <a href="https://opencode.ai/go" target="_blank">OpenCode Go</a> ($10/mes; en Colmena usa el proveedor <code>opencode</code> con modelo <code>deepseek-v4.1-flash</code>)</p>
+      <div class="row"><button id="guardarClaves">Guardar claves</button><span class="msg" id="msgClaves"></span></div>
+    </div>
+
+    <div class="pane" data-pane="json">
+      <p class="help">Edición directa de <code>colmena.config.json</code>. Al guardar desde aquí se ignoran las otras pestañas.</p>
+      <textarea class="json" id="cfgJson"></textarea>
+      <div class="row"><button id="guardarJson">Guardar JSON</button><span class="msg" id="msgJson"></span></div>
+    </div>
+
+    <footer>
+      <button id="guardarConfig">Guardar configuración</button>
+      <span class="msg" id="msgConfig"></span>
+      <div class="spacer"></div>
+      <span class="msg" id="cfgHome"></span>
+    </footer>
+  </div>
+</div>
+
+<main>
+  <section class="card vivo">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <h2 style="margin:0">Colmena en vivo</h2>
+      <div class="spacer"></div>
+      <span class="h247"><span class="g">⟳</span> <span id="h247">24/7</span></span>
+    </div>
+    <div class="costes" id="costes"></div>
+    <div class="org">
+      <div class="side l" id="ladoIzq">Recibe el objetivo,<br>lo divide en tareas<br>y delega en las obreras →<br><span class="nagentes" id="nagentes"></span></div>
+      <div>
+        <div class="ceo" id="ceo">
+          <div class="cara">🤖</div>
+          <div class="n" id="ceoNombre">Astra (CEO)</div>
+          <div class="m" id="ceoModelo">—</div>
+          <div class="st" id="ceoEstado">en espera</div>
+        </div>
+        <div class="tronco" id="tronco"></div>
+      </div>
+      <div class="side r lado">
+        <div class="nodo" id="nodoRevisor"><span class="i">🧐</span><span>Revisor<b id="revisorModelo">—</b></span><span class="st" id="revisorEstado"></span></div>
+        <div class="nodo" id="nodoEntrevistador"><span class="i">🎙️</span><span>Entrevistador<b id="entrevistadorModelo">—</b></span><span class="st" id="entrevistadorEstado"></span></div>
+        <div class="muted" style="font-size:11px;line-height:1.5">✓ Orquesta · ✓ Revisa · ✓ Alto nivel · ✓ Coste bajo</div>
+      </div>
+    </div>
+    <div class="obreras" id="obreras"></div>
+    <div class="flujo" id="flujo">
+      <div class="paso" data-paso="objetivo">📝 Tú das el objetivo</div><span class="flecha">→</span>
+      <div class="paso" data-paso="planifica">🤖 <span id="pasoPlan">Astra</span> planifica</div><span class="flecha">→</span>
+      <div class="paso" data-paso="ejecuta">🐝 <span id="pasoEjec">Flash</span> ejecuta</div><span class="flecha">→</span>
+      <div class="paso" data-paso="revisa">✅ <span id="pasoRev">Revisor</span> revisa</div><span class="flecha">→</span>
+      <div class="paso" data-paso="resultados">📊 Resultados</div>
+    </div>
+    <div class="estado">
+      <span><span class="led" id="led"></span><b id="stRol">inactivo</b></span>
+      <span id="stModelo">—</span>
+      <span id="stTokens">0 tokens</span>
+      <span class="ctx" title="Tokens de entrada de la última llamada frente al precipicio de precio (272K)"><i id="stCtx"></i></span>
+      <span id="stCoste">$0.0000</span>
+      <span id="stPaso"></span>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>Nuevo objetivo</h2>
+      <div id="banner" class="banner" style="display:none"></div>
+      <label class="toggle"><input type="checkbox" id="asistenteOn"> <span>Pulir el objetivo con el asistente antes de lanzar</span> <span class="muted" id="asistenteModelo"></span></label>
+      <textarea id="objetivo" placeholder="Ej: Crea una web estática en workspace/landing con una página de inicio, CSS propio y un formulario de contacto."></textarea>
+      <div class="chat" id="chat" style="display:none">
+        <div class="msgs" id="chatMsgs"></div>
+        <div class="preguntas" id="preguntas"></div>
+        <div class="chatin">
+          <textarea id="chatInput" placeholder="Responde aquí… (Enter envía, Shift+Enter salto de línea)"></textarea>
+          <button id="chatEnviar">Enviar</button>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <span class="msg" id="chatEstado"></span>
+          <span><button id="chatLanzar" style="display:none">🚀 Lanzar este objetivo</button> <button class="sec" id="chatCerrar" title="Pide al entrevistador que redacte ya el objetivo con lo que hay y lo lanza">Cerrar y lanzar</button> <button class="sec" id="chatCancelar">Cancelar</button></span>
+        </div>
+      </div>
+      <div class="row">
+        <button id="lanzar">Lanzar objetivo</button>
+        <button id="latido" class="sec" title="Solo el ejecutor barato, sin planificar ni revisar">Latido</button>
+        <button id="detener" class="sec" disabled>Detener</button>
+        <span class="muted" id="estadoActivo"></span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Repositorio</h2>
+      <div id="repoEstado" class="muted">Cargando…</div>
+      <div id="repoOpciones" class="repoopts"></div>
+      <details id="repoAdd" style="margin-top:10px">
+        <summary class="muted" style="cursor:pointer">＋ Añadir un repositorio al workspace</summary>
+        <div class="row"><input type="text" id="repoUrl" placeholder="https://github.com/usuario/repo  o  usuario/repo"><button id="repoClonar">Clonar</button></div>
+        <div class="row" id="repoListaRow"><select id="repoLista" style="flex:1"><option value="">Elegir de mis repos de GitHub…</option></select><button class="sec" id="repoCargar">Cargar</button></div>
+        <span class="msg" id="repoMsg"></span>
+      </details>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Historial</h2>
+      <ul class="runs" id="runs"></ul>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Tareas programadas</h2>
+      <div id="cron" class="muted"></div>
+    </div>
+  </aside>
+
+  <section>
+    <div class="card">
+      <h2 id="tituloRun">Ejecución</h2>
+      <div id="resumen" class="muted"></div>
+      <div id="tareas" style="margin-top:10px"></div>
+      <div id="final" class="final"></div>
+    </div>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h2>Registro en vivo</h2>
+        <div class="log" id="log"></div>
+      </div>
+      <div class="card cost">
+        <h2>Coste por modelo</h2>
+        <table><thead><tr><th>Modelo</th><th class="n">Llamadas</th><th class="n">Entrada</th><th class="n">Caché</th><th class="n">Salida</th><th class="n">USD</th></tr></thead><tbody id="costeTabla"></tbody></table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let estado = { runs: [], activo: null };
+let runSel = null;       // run mostrado en el panel derecho
+let logEvents = [];
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
+const usd = (n) => "$" + Number(n || 0).toFixed(4);
+const hora = (iso) => (iso || "").slice(11, 19);
+const SIN_CRON = "Ninguna activa. Edita \"cron\" en colmena.config.json.";
+
+async function cargarEstado() {
+  const s = await (await fetch("/api/state")).json();
+  estado = s;
+  $("roles").innerHTML = Object.entries(s.roles).map(([r, c]) =>
+    `<span class="role"><span class="dot ${s.mock || s.proveedores[c.provider] ? "on" : ""}"></span>${r}: <b>${esc(c.model)}</b></span>`).join("");
+  const usados = new Set(Object.values(s.roles).map((c) => c.provider));
+  const faltan = Object.entries(s.proveedores).filter(([k, ok]) => !ok && usados.has(k)).map(([k]) => k);
+  if (s.mock) { $("banner").style.display = ""; $("banner").textContent = "MODO SIMULADO (COLMENA_MOCK=1): no se llama a ninguna API."; }
+  else if (faltan.length) { $("banner").style.display = ""; $("banner").textContent = "Faltan claves en .env: " + faltan.join(", ") + ". Los roles que las usen fallarán."; }
+  else $("banner").style.display = "none";
+  $("cron").innerHTML = s.cron.length
+    ? s.cron.map((j) => `<div><b>${esc(j.nombre)}</b> <span class="muted">${esc(j.modo)} · ${esc(j.expresion)} · próxima ${esc((j.proxima || "").replace("T", " ").slice(0, 16))}</span></div>`).join("")
+    : SIN_CRON;
+  $("asistenteOn").checked = !!(s.asistente && s.asistente.activo);
+  if (s.borrador && !$("objetivo").value.trim()) { $("objetivo").value = s.borrador; $("objetivo").style.minHeight = "220px"; }
+  $("asistenteModelo").textContent = s.roles.entrevistador ? "· " + s.roles.entrevistador.model : "";
+  logEvents = s.eventos || [];
+  pintarLog();
+  pintarRuns();
+  if (s.activo) mostrarRun(s.activo);
+  else if (!runSel && s.runs[0]) cargarRun(s.runs[0].id);
+  else pintarVivo(runSel);
+  actualizarBotones();
+  pintar247();
+  cargarRepo();
+}
+
+function pintarRuns() {
+  const lista = estado.activo ? [estado.activo, ...estado.runs.filter((r) => r.id !== estado.activo.id)] : estado.runs;
+  $("runs").innerHTML = lista.map((r) => `
+    <li data-id="${r.id}" class="${runSel && runSel.id === r.id ? "sel" : ""}">
+      <div class="obj">${esc(r.objetivo)}</div>
+      <div class="meta"><span>${hora(r.inicio)} · ${esc(r.origen)}</span><span><span class="badge ${r.estado}">${r.estado}</span> ${usd(r.costeUsd)}</span></div>
+    </li>`).join("") || `<li class="muted">Todavía no hay ejecuciones.</li>`;
+  for (const li of $("runs").querySelectorAll("li[data-id]")) li.onclick = () => cargarRun(li.dataset.id);
+}
+
+async function cargarRun(id) {
+  const r = await (await fetch("/api/runs/" + id)).json();
+  if (!r.error) mostrarRun(r);
+}
+
+function mostrarRun(r) {
+  runSel = r;
+  const activa = r.estado === "planificando" || r.estado === "ejecutando";
+  $("tituloRun").innerHTML = `Ejecución <span class="badge ${r.estado}">${r.estado}</span>` + (activa ? "" : ` <button class="sec" id="reutilizar" style="padding:3px 8px;font-size:12px;margin-left:8px">↺ Reutilizar objetivo</button>`);
+  const btnR = $("reutilizar"); if (btnR) btnR.onclick = () => { $("objetivo").value = r.objetivo; $("objetivo").scrollIntoView({ block: "center" }); $("objetivo").focus(); };
+  const continuable = !activa && (r.tareas || []).length && (r.tareas || []).some((t) => t.estado !== "hecha");
+  if (continuable) {
+    $("tituloRun").insertAdjacentHTML("beforeend", ` <button id="continuar" style="padding:3px 10px;font-size:12px;margin-left:4px" title="Relanza planificando solo lo que falta; lo aprobado no se repite">▶ Continuar</button>`);
+    $("continuar").onclick = async () => {
+      if (estado.activo) { alert("Ya hay un objetivo en curso."); return; }
+      const resp = await fetch("/api/runs/" + r.id + "/continuar", { method: "POST" });
+      if (!resp.ok) alert((await resp.json()).error);
+    };
+  }
+  $("resumen").innerHTML = `<b>${esc(r.objetivo)}</b>${r.resumenPlan ? "<br>" + esc(r.resumenPlan) : ""}${r.error ? `<br><span style="color:var(--bad)">${esc(r.error)}</span>` : ""}`;
+  $("tareas").innerHTML = (r.tareas || []).map((t) => `
+    <div class="task">
+      <div class="t"><b>${esc(t.id)} · ${esc(t.titulo)}</b><span class="badge ${t.estado}">${t.estado}${t.intentos > 1 ? " · intento " + t.intentos : ""}</span></div>
+      <details><summary>Instrucciones y resultado</summary>
+        <div>${esc(t.instrucciones)}</div>
+        <div style="margin-top:4px"><b>Entregable:</b> ${esc(t.entregable)}</div>
+        ${t.informe ? `<b>Informe del ejecutor:</b><pre>${esc(t.informe)}</pre>` : ""}
+        ${t.revision ? `<b>Revisor:</b><pre>${esc(t.revision)}</pre>` : ""}
+      </details>
+    </div>`).join("") || `<span class="muted">Sin tareas todavía.</span>`;
+  const g = r.git, pr = r.pruebas;
+  $("final").innerHTML = ((g || pr) ? `<div class="gitinfo">
+      ${pr ? `<span>🧪 tests: <b class="${pr.ok ? "ok" : "bad"}">${pr.ok ? "pasan" : "fallan"}</b></span>` : ""}
+      ${g ? `<span>🌿 rama <b>${esc(g.rama)}</b> (desde ${esc(g.base)})</span><span>${g.commits.length} commit${g.commits.length === 1 ? "" : "s"}${g.commits.length ? " · " + esc(g.commits.join(", ")) : ""}</span>` : ""}
+      ${g && g.pr ? `<span>🔀 <a href="${esc(g.pr)}" target="_blank">pull request</a></span>` : ""}
+      ${g && g.error ? `<span class="bad">⚠ ${esc(g.error)}</span>` : ""}
+    </div>` : "") + (r.informeFinal ? `<h2>Informe final</h2><pre>${esc(r.informeFinal)}</pre>` : "");
+  $("coste").textContent = usd(r.costeUsd);
+  $("costeTabla").innerHTML = Object.entries(r.porModelo || {}).map(([m, t]) =>
+    `<tr><td>${esc(m)}</td><td class="n">${t.calls}</td><td class="n">${t.input.toLocaleString()}</td><td class="n">${t.cacheRead.toLocaleString()}</td><td class="n">${t.output.toLocaleString()}</td><td class="n">${usd(t.usd)}</td></tr>`).join("")
+    || `<tr><td colspan="6" class="muted">—</td></tr>`;
+  pintarRuns();
+  pintarVivo(r);
+}
+
+function pintarLog() {
+  const el = $("log");
+  el.innerHTML = logEvents.slice(-300).map((e) => `<div class="ev-${e.type.replace(".", "-")}"><span class="ts">${hora(e.ts)}</span> ${esc(e.msg || e.type)}</div>`).join("");
+  el.scrollTop = el.scrollHeight;
+}
+
+function actualizarBotones() {
+  const activo = !!estado.activo;
+  $("lanzar").disabled = activo;
+  $("latido").disabled = activo;
+  $("detener").disabled = !activo;
+  $("estadoActivo").textContent = activo ? "En curso…" : "";
+}
+
+async function lanzar(modo) {
+  const objetivo = $("objetivo").value.trim();
+  if (!objetivo) return;
+  const r = await fetch("/api/runs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ objetivo, modo }) });
+  if (!r.ok) alert((await r.json()).error);
+  else $("objetivo").value = "";
+}
+$("lanzar").onclick = () => { if ($("asistenteOn").checked && !chat.listo) abrirChat(); else lanzar("objetivo"); };
+$("asistenteOn").onchange = async () => {
+  await fetch("/api/config", { method: "PUT", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...(await (await fetch("/api/config")).json()).config, asistente: { activo: $("asistenteOn").checked } }) });
+};
+
+// ================= repositorio =================
+const GIT_OPTS = [["ramaPorObjetivo", "rama por objetivo"], ["commitPorTarea", "commit por tarea"], ["push", "push al terminar"], ["pullRequest", "abrir pull request"]];
+let gitInfo = null;
+
+async function cargarRepo() {
+  try {
+    gitInfo = await (await fetch("/api/git")).json();
+  } catch (e) { $("repoEstado").textContent = "No se pudo leer el estado git: " + e.message; return; }
+  const g = gitInfo, a = g.activo;
+  if (!a) {
+    $("repoEstado").innerHTML = g.repos.length > 1
+      ? `<div class="repo"><div class="n">Hay ${g.repos.length} repositorios en el workspace. Elige el activo: <select id="repoSel">${g.repos.map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select></div></div>`
+      : `<div class="repo"><div class="n">Sin repositorio</div><div class="m">El workspace no es un repo git. Añade uno abajo (clonar) o trabaja sin git: Colmena funciona igual, sin ramas ni commits.</div></div>`;
+    const sel = $("repoSel"); if (sel) sel.onchange = async () => { await fetch("/api/git/repo", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo: sel.value }) }); cargarRepo(); };
+  } else {
+    const selector = g.repos.length > 1 ? `<select id="repoSel">${g.repos.map((r) => `<option value="${esc(r)}" ${r === a.carpeta ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>` : `<span>📁 ${esc(a.carpeta === "." ? "workspace" : a.carpeta)}</span>`;
+    $("repoEstado").innerHTML = `<div class="repo">
+      <div class="n">${selector}${a.url ? `<a href="${esc(a.url)}" target="_blank">${esc(a.remoto)} ↗</a>` : `<span class="muted">sin remoto GitHub</span>`}</div>
+      <div class="m"><span>🌿 rama <b>${esc(a.rama)}</b></span>${a.cambios ? `<span class="cambios">● ${a.cambios} cambio${a.cambios === 1 ? "" : "s"} sin commit</span>` : `<span>✓ limpio</span>`}${a.ramasColmena.length ? `<span>${a.ramasColmena.length} rama${a.ramasColmena.length === 1 ? "" : "s"} colmena/*</span>` : ""}</div>
+      ${a.commits.length ? `<div class="commits">${a.commits.map((c) => { const [h, ...r] = c.split(" "); return `<div><span class="c">${esc(h)}</span> ${esc(r.join(" "))}</div>`; }).join("")}</div>` : ""}
+    </div>`;
+    const sel = $("repoSel"); if (sel) sel.onchange = async () => { await fetch("/api/git/repo", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo: sel.value }) }); cargarRepo(); };
+  }
+  $("repoOpciones").innerHTML = `<label><input type="checkbox" data-g="activo" ${g.config.activo ? "checked" : ""}> git activo</label>` +
+    GIT_OPTS.map(([k, t]) => `<label><input type="checkbox" data-g="${k}" ${g.config[k] ? "checked" : ""} ${g.config.activo ? "" : "disabled"}> ${t}${k === "pullRequest" && !g.token ? ' <span title="Necesita GITHUB_TOKEN en ⚙ → Claves API">⚠</span>' : ""}</label>`).join("");
+  for (const cb of $("repoOpciones").querySelectorAll("input[data-g]")) cb.onchange = async () => {
+    const body = { [cb.dataset.g]: cb.checked };
+    if (cb.dataset.g === "pullRequest" && cb.checked) body.push = true;
+    await fetch("/api/git/opciones", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    cargarRepo();
+  };
+  $("repoListaRow").style.display = g.token ? "" : "none";
+}
+
+$("repoClonar").onclick = async () => {
+  const url = $("repoUrl").value.trim() || $("repoLista").value;
+  if (!url) { $("repoMsg").textContent = "Pega una URL o elige un repo."; return; }
+  $("repoMsg").className = "msg"; $("repoMsg").textContent = "Clonando… (puede tardar)"; $("repoClonar").disabled = true;
+  const r = await fetch("/api/git/clone", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
+  const j = await r.json();
+  $("repoClonar").disabled = false;
+  if (!r.ok) { $("repoMsg").className = "msg err"; $("repoMsg").textContent = j.error; return; }
+  $("repoMsg").className = "msg ok"; $("repoMsg").textContent = "Clonado en workspace/" + j.carpeta + " y activado.";
+  $("repoUrl").value = ""; $("repoAdd").open = false;
+  cargarRepo();
+};
+$("repoCargar").onclick = async () => {
+  $("repoMsg").className = "msg"; $("repoMsg").textContent = "Cargando tus repos…";
+  const r = await fetch("/api/github/repos"); const j = await r.json();
+  if (!r.ok) { $("repoMsg").className = "msg err"; $("repoMsg").textContent = j.error; return; }
+  $("repoLista").innerHTML = `<option value="">Elegir de mis repos de GitHub… (${j.repos.length})</option>` + j.repos.map((x) => `<option value="${esc(x.url)}">${x.privado ? "🔒 " : ""}${esc(x.nombre)}${x.descripcion ? " — " + esc(x.descripcion.slice(0, 50)) : ""}</option>`).join("");
+  $("repoMsg").textContent = "";
+};
+$("repoLista").onchange = () => { if ($("repoLista").value) $("repoUrl").value = $("repoLista").value; };
+
+// ================= asistente de objetivos (entrevista) =================
+const chat = { historial: [], usd: 0, listo: false, ocupado: false };
+
+// Extrae las preguntas numeradas ("1. …", "2) …") del último mensaje del entrevistador.
+function preguntasDe(texto) {
+  const out = [];
+  for (const linea of (texto || "").split("\n")) {
+    const m = linea.match(/^\s*(\d{1,2})[.)]\s+(.+)$/);
+    if (m) out.push({ n: m[1], q: m[2].trim() });
+    else if (out.length && linea.trim() && !/^\s*$/.test(linea)) out[out.length - 1].q += " " + linea.trim();
+  }
+  return out;
+}
+
+function pintarPreguntas() {
+  const ultimo = [...chat.historial].reverse().find((t) => t.role === "assistant");
+  const qs = chat.listo || chat.ocupado ? [] : preguntasDe(ultimo && ultimo.content);
+  $("preguntas").innerHTML = qs.map((q) => `<div class="preg"><label><b>${esc(q.n)}.</b>${esc(q.q)}</label><textarea data-q="${esc(q.n)}" placeholder="tu respuesta"></textarea></div>`).join("");
+  $("chatInput").placeholder = qs.length ? "Algo más que quieras añadir (opcional)… Enter envía" : "Responde aquí… (Enter envía, Shift+Enter salto de línea)";
+  for (const ta of $("preguntas").querySelectorAll("textarea")) ta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("chatEnviar").click(); } };
+}
+
+function pintarChat() {
+  $("chatMsgs").innerHTML = chat.historial.map((t) => `<div class="b ${t.role === "user" ? "u" : "a"}">${esc(t.content)}</div>`).join("")
+    + (chat.objetivo ? `<div class="b obj"><div class="k">Objetivo propuesto</div>${esc(chat.objetivo)}</div>` : "")
+    + (chat.ocupado ? `<div class="pensando">el entrevistador está pensando…</div>` : "");
+  $("chatMsgs").scrollTop = $("chatMsgs").scrollHeight;
+  $("chatEstado").textContent = "coste de la entrevista " + usd(chat.usd) + (chat.listo ? " · objetivo listo: puedes lanzarlo o seguir ajustándolo" : "");
+  $("chatEnviar").disabled = chat.ocupado;
+  $("nodoEntrevistador").classList.toggle("on", chat.ocupado);
+  $("entrevistadorEstado").textContent = chat.ocupado ? "preguntando…" : "";
+  $("chatLanzar").style.display = chat.listo && !chat.ocupado ? "" : "none";
+  $("chatCerrar").disabled = chat.ocupado;
+  pintarPreguntas();
+}
+
+async function abrirChat() {
+  const idea = $("objetivo").value.trim();
+  if (!idea) { alert("Escribe primero tu idea, aunque sea vaga."); return; }
+  chat.historial = []; chat.usd = 0; chat.listo = false; chat.objetivo = null;
+  $("chat").style.display = ""; $("objetivo").style.display = "none";
+  document.body.classList.add("chat-abierto");
+  await enviarTurno(idea);
+}
+
+async function enviarTurno(texto) {
+  chat.historial.push({ role: "user", content: texto });
+  chat.ocupado = true; pintarChat();
+  try {
+    const r = await fetch("/api/asistente", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ historial: chat.historial }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    chat.historial.push({ role: "assistant", content: j.mensaje });
+    chat.usd += j.usd || 0;
+    if (j.objetivo) { chat.objetivo = j.objetivo; chat.listo = true; $("objetivo").value = j.objetivo; }
+  } catch (e) {
+    chat.historial.push({ role: "assistant", content: "⚠ " + e.message });
+  }
+  chat.ocupado = false; pintarChat();
+  const primera = $("preguntas").querySelector("textarea");
+  (primera || $("chatInput")).focus();
+}
+
+$("chatEnviar").onclick = () => {
+  if (chat.ocupado) return;
+  const partes = [...$("preguntas").querySelectorAll("textarea")].filter((ta) => ta.value.trim()).map((ta) => ta.dataset.q + ". " + ta.value.trim());
+  const extra = $("chatInput").value.trim();
+  if (extra) partes.push(extra);
+  if (!partes.length) return;
+  $("chatInput").value = "";
+  enviarTurno(partes.join("\n"));
+};
+$("chatInput").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("chatEnviar").click(); } };
+function cerrarChat() { $("chat").style.display = "none"; $("objetivo").style.display = ""; document.body.classList.remove("chat-abierto"); }
+function lanzarDesdeChat() {
+  $("objetivo").value = chat.objetivo || $("objetivo").value;
+  cerrarChat();
+  chat.listo = true; lanzar("objetivo"); chat.listo = false; chat.objetivo = null;
+}
+$("chatLanzar").onclick = lanzarDesdeChat;
+$("chatCerrar").onclick = async () => {
+  if (chat.ocupado) return;
+  if (!chat.listo) {
+    // Forzamos el cierre: el entrevistador redacta el objetivo con lo que hay (una llamada más).
+    await enviarTurno("Cierra la entrevista: redacta AHORA el objetivo final con lo acordado hasta aquí, sin más preguntas, asumiendo lo que falte.");
+    if (!chat.listo) {
+      const ultimoA = [...chat.historial].reverse().find((t) => t.role === "assistant");
+      if (!confirm("El entrevistador no ha devuelto un objetivo estructurado. ¿Lanzar con su último mensaje como objetivo?")) return;
+      chat.objetivo = (ultimoA && ultimoA.content) || chat.historial.filter((t) => t.role === "user").map((t) => t.content).join("\n");
+    }
+  }
+  lanzarDesdeChat();
+};
+$("chatCancelar").onclick = () => { cerrarChat(); chat.listo = false; chat.objetivo = null; if (chat.historial[0]) $("objetivo").value = chat.historial[0].content; };
+$("latido").onclick = () => lanzar("latido");
+$("detener").onclick = async () => {
+  if (estado.activo) await fetch("/api/runs/" + estado.activo.id + "/stop", { method: "POST" });
+};
+
+// ================= vista viva (infografía) =================
+const EQUIPOS = [
+  ["codigo", "💻", "Código", "y depuración"],
+  ["investigacion", "📄", "Investigación", "y resúmenes"],
+  ["escritura", "✍️", "Escritura", "y contenido"],
+  ["datos", "🗄️", "Datos", "y automatización"],
+  ["monitorizacion", "⏱️", "Monitorización", "y cron"],
+];
+const NOMBRE_MODELO = (m) => /astra/i.test(m) ? "Astra" : /deepseek|flash/i.test(m) ? "Flash" : /claude|opus|sonnet|haiku/i.test(m) ? "Claude" : m;
+const vivo = { paso: null, equipo: null, tarea: null, ult: null };   // estado de la animación
+
+function pintarObreras(r) {
+  const tareas = (r && r.tareas) || [];
+  const activas = tareas.filter((t) => t.estado === "en_curso" || t.estado === "revisando");
+  $("nagentes").innerHTML = activas.length ? `<b>${activas.length}</b> agente${activas.length === 1 ? "" : "s"} trabajando` : "";
+  $("obreras").innerHTML = EQUIPOS.map(([id, ico, n, c]) => {
+    const mias = tareas.filter((t) => t.categoria === id);
+    const enCurso = mias.filter((t) => t.estado === "en_curso" || t.estado === "revisando");
+    const hechas = mias.filter((t) => t.estado === "hecha");
+    const cls = enCurso.length ? "on" : (mias.length && hechas.length === mias.length ? "hecho" : "");
+    // Una abeja por agente: en curso (amarilla), en revisión (morada) y terminadas (verde, apagadas).
+    const abejas = [
+      ...enCurso.map((t) => `<div class="abeja ${t.estado === "revisando" ? "rev" : ""}" title="${esc(t.titulo)}"><span class="ic">🐝</span> obrera ${t.obrera || "?"} · ${esc(t.titulo)}${t.estado === "revisando" ? " · en revisión" : ""}</div>`),
+      ...hechas.slice(-2).map((t) => `<div class="abeja ok" title="${esc(t.titulo)}"><span class="ic">✓</span> ${esc(t.titulo)}</div>`),
+      ...mias.filter((t) => t.estado === "fallida").map((t) => `<div class="abeja ok" style="border-color:var(--bad)" title="${esc(t.titulo)}">✗ ${esc(t.titulo)}</div>`),
+    ];
+    return `<div class="obrera ${cls}" data-equipo="${id}">
+      ${mias.length ? `<span class="cnt">${hechas.length}/${mias.length}</span>` : ""}
+      <div class="ico">${ico}</div><div class="n">${n}</div><div class="c">${c}</div>
+      <div class="abejas">${abejas.join("")}</div>
+    </div>`;
+  }).join("");
+}
+
+function pintarCostes(r) {
+  const roles = estado.roles || {};
+  const pm = (r && r.porModelo) || {};
+  const tile = (cls, k, modelo, v) => `<div class="tile ${cls}"><div class="k">${k}</div><div class="m" title="${esc(modelo)}">${esc(modelo)}</div><div class="v">${usd(v)}</div></div>`;
+  const rp = roles.planificador || {}, re = roles.ejecutor || {}, rr = roles.revisor || {};
+  $("costes").innerHTML =
+    tile("astra", "Planificador · " + NOMBRE_MODELO(rp.model || ""), rp.model || "—", pm[rp.model]?.usd) +
+    tile("flash", "Ejecutor · " + NOMBRE_MODELO(re.model || ""), re.model || "—", pm[re.model]?.usd) +
+    tile("claude", "Revisor · " + NOMBRE_MODELO(rr.model || ""), rr.model || "—", pm[rr.model]?.usd) +
+    `<div class="tile total"><div class="k">Esta ejecución</div><div class="m">${r ? esc(r.estado) : "—"}</div><div class="v">${usd(r && r.costeUsd)}</div></div>` +
+    `<div class="tile total"><div class="k">Este mes</div><div class="m">todas las ejecuciones</div><div class="v">${usd(estado.mesUsd)}</div></div>`;
+  $("ceoNombre").textContent = NOMBRE_MODELO(rp.model || "") + " (CEO)";
+  $("ceoModelo").textContent = (rp.model || "—") + (rp.effort ? " · effort " + rp.effort : "");
+  $("pasoPlan").textContent = NOMBRE_MODELO(rp.model || "Astra");
+  $("pasoEjec").textContent = NOMBRE_MODELO(re.model || "Flash");
+  $("pasoRev").textContent = NOMBRE_MODELO(rr.model || "Revisor");
+  const re2 = roles.entrevistador || {};
+  const revOff = estado.revision && estado.revision.activo === false;
+  $("revisorModelo").textContent = revOff ? "desactivado · aprueban los tests" : (rr.model || "—");
+  $("nodoRevisor").style.opacity = revOff ? ".45" : "";
+  $("pasoRev").textContent = revOff ? "Tests" : NOMBRE_MODELO(rr.model || "Revisor");
+  $("entrevistadorModelo").textContent = re2.model || "—";
+}
+
+function pintarFlujo(paso, terminado) {
+  const orden = ["objetivo", "planifica", "ejecuta", "revisa", "resultados"];
+  const i = orden.indexOf(paso);
+  for (const el of $("flujo").querySelectorAll(".paso")) {
+    const j = orden.indexOf(el.dataset.paso);
+    el.className = "paso" + (j === i && !terminado ? " on" : (j < i || terminado ? " ok" : ""));
+  }
+}
+
+function pasoDeRun(r) {
+  if (!r) return null;
+  if (r.estado === "planificando") return "planifica";
+  if (r.estado === "ejecutando") return r.tareas.some((t) => t.estado === "revisando") ? "revisa" : "ejecuta";
+  return "resultados";
+}
+
+function pintarVivo(r) {
+  pintarCostes(r);
+  pintarObreras(r);
+  const activo = r && (r.estado === "planificando" || r.estado === "ejecutando");
+  const paso = vivo.paso && activo ? vivo.paso : pasoDeRun(r);
+  pintarFlujo(paso, r && !activo);
+  $("ceo").classList.toggle("activo", !!activo && (paso === "planifica" || paso === "resultados" || paso === "revisa"));
+  $("tronco").classList.toggle("on", !!activo && paso === "ejecuta");
+  $("ceoEstado").textContent = !r ? "en espera" : paso === "planifica" ? "planificando…" : paso === "ejecuta" ? "delegando · " + (r.tareas.filter((t) => t.estado === "hecha").length) + "/" + r.tareas.length + " tareas" : paso === "revisa" ? "revisando…" : r.estado === "terminada" ? "objetivo completado" : r.estado;
+  $("led").classList.toggle("on", !!activo);
+  const revisando = !!activo && (r.tareas || []).some((t) => t.estado === "revisando");
+  $("nodoRevisor").classList.toggle("on", revisando);
+  $("revisorEstado").textContent = revisando ? "revisando " + (r.tareas || []).filter((t) => t.estado === "revisando").map((t) => t.id).join(", ") : "";
+  if (!activo) { $("stRol").textContent = r ? r.estado : "inactivo"; $("stPaso").textContent = ""; }
+}
+
+function eventoVivo(ev) {
+  const r = ev.data && ev.data.run;
+  if (ev.type === "run.started") { vivo.paso = r && r.resumenPlan && r.resumenPlan.startsWith("Latido") ? "ejecuta" : "planifica"; vivo.ult = null; }
+  else if (ev.type === "plan.ready") vivo.paso = "ejecuta";
+  else if (ev.type === "task.started") vivo.paso = "ejecuta";
+  else if (ev.type === "task.review") vivo.paso = "ejecuta";
+  else if (ev.type === "agent.call" && ev.data) {
+    const d = ev.data;
+    if (d.role === "revisor") vivo.paso = "revisa";
+    else if (d.role === "planificador" && runSel && runSel.tareas && runSel.tareas.length) vivo.paso = "resultados";
+    else if (d.role === "ejecutor") vivo.paso = "ejecuta";
+    $("led").classList.add("on");
+    $("stRol").textContent = d.role;
+    $("stModelo").textContent = d.model;
+    $("stTokens").textContent = (d.usage.input / 1000).toFixed(1) + "K → " + (d.usage.output / 1000).toFixed(1) + "K tokens" + (d.usage.cacheRead ? " (" + Math.round(100 * d.usage.cacheRead / Math.max(1, d.usage.input)) + "% caché)" : "");
+    $("stCtx").style.width = Math.min(100, 100 * d.usage.input / 272000) + "%";
+    $("stCoste").textContent = usd(d.totalUsd) + " acumulado";
+    $("stPaso").textContent = "paso " + d.step;
+  }
+  else if (ev.type === "agent.tool" && ev.data) { $("stRol").textContent = ev.data.role + " → " + ev.data.tool; }
+  else if (ev.type === "run.finished") vivo.paso = null;
+  if (r) pintarVivo(r);
+  else if (ev.type === "agent.call") pintarFlujo(vivo.paso, false), $("ceo").classList.toggle("activo", vivo.paso !== "ejecuta"), $("tronco").classList.toggle("on", vivo.paso === "ejecuta");
+}
+
+function pintar247() {
+  const ms = estado.arranque ? Date.now() - new Date(estado.arranque).getTime() : 0;
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  const cron = (estado.cron || []).filter((c) => c.proxima).sort((a, b) => a.proxima.localeCompare(b.proxima))[0];
+  $("h247").textContent = "24/7 · activa " + (h ? h + "h " : "") + m + "m" + (cron ? " · próximo cron " + cron.nombre + " " + new Date(cron.proxima).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : " · sin cron activos");
+}
+setInterval(pintar247, 30000);
+
+// ================= configuración =================
+const ROLES = ["planificador", "ejecutor", "revisor", "entrevistador"];
+const PROVEEDORES = ["openai", "deepseek", "anthropic", "opencode"];
+const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];
+const KEYS = [["OPENAI_API_KEY", "OpenAI (Astra)"], ["DEEPSEEK_API_KEY", "DeepSeek"], ["ANTHROPIC_API_KEY", "Anthropic (Claude)"], ["OPENCODE_API_KEY", "OpenCode Go"], ["GITHUB_TOKEN", "GitHub (token para PRs)"]];
+let cfg = null;        // copia editable de la config
+let claves = {};
+
+const opts = (arr, sel, vacio) => arr.map((v) => `<option value="${esc(v)}" ${v === (sel ?? "") ? "selected" : ""}>${v === "" ? (vacio || "—") : esc(v)}</option>`).join("");
+
+async function abrirConfig() {
+  const r = await (await fetch("/api/config")).json();
+  cfg = JSON.parse(JSON.stringify(r.config));
+  claves = r.claves;
+  $("cfgHome").textContent = "Datos en " + r.home;
+  pintarConfig();
+  $("msgConfig").textContent = ""; $("msgClaves").textContent = ""; $("msgJson").textContent = "";
+  $("modal").classList.add("open");
+}
+
+function pintarConfig() {
+  // roles
+  $("modelos").innerHTML = Object.keys(cfg.precios || {}).map((m) => `<option value="${esc(m)}">`).join("");
+  $("rolesForm").innerHTML = ROLES.map((r) => {
+    const rc = cfg.roles[r] || {};
+    return `<div class="rolefila"><b>${r}</b>
+      <select data-rol="${r}" data-k="provider">${opts(PROVEEDORES, rc.provider)}</select>
+      <input type="text" list="modelos" data-rol="${r}" data-k="model" value="${esc(rc.model || "")}" placeholder="id del modelo">
+      <select data-rol="${r}" data-k="effort">${opts(EFFORTS, rc.effort || "", "por defecto")}</select></div>`;
+  }).join("");
+  $("cfgWorkspace").value = cfg.workspace || "./workspace";
+  // límites
+  for (const k of Object.keys(cfg.limites)) { const el = $("lim_" + k); if (el) el.value = cfg.limites[k]; }
+  // pruebas y git
+  const pr = cfg.pruebas || {}, gt = cfg.git || {};
+  $("pr_obligatorias").checked = !!pr.obligatorias; $("pr_comando").value = pr.comando || ""; $("pr_timeoutSeg").value = pr.timeoutSeg || 300;
+  for (const k of ["activo", "ramaPorObjetivo", "commitPorTarea", "push", "pullRequest"]) $("git_" + k).checked = !!gt[k];
+  $("rev_activo").checked = !cfg.revision || cfg.revision.activo !== false;
+  // precios
+  $("preciosBody").innerHTML = Object.entries(cfg.precios || {}).map(([m, p]) => {
+    const extras = [p.offPeak ? "fuera de punta" : "", p.cliff ? "precipicio " + p.cliff.inputTokens.toLocaleString() : ""].filter(Boolean).join(", ");
+    return `<tr data-modelo="${esc(m)}"><td><input type="text" data-pk="nombre" value="${esc(m)}"></td>
+      <td><input type="number" step="0.001" data-pk="input" value="${p.input}"></td>
+      <td><input type="number" step="0.001" data-pk="output" value="${p.output}"></td>
+      <td><input type="number" step="0.001" data-pk="cacheRead" value="${p.cacheRead}"></td>
+      <td class="muted">${esc(extras) || "—"}</td><td><button class="x" data-del="${esc(m)}">✕</button></td></tr>`;
+  }).join("");
+  for (const b of $("preciosBody").querySelectorAll("button[data-del]")) b.onclick = () => { leerPrecios(); delete cfg.precios[b.dataset.del]; pintarConfig(); };
+  // cron
+  $("cronList").innerHTML = (cfg.cron || []).map((c, i) => `
+    <div class="cronitem" data-i="${i}">
+      <div class="g">
+        <input type="text" data-ck="nombre" value="${esc(c.nombre)}" placeholder="nombre">
+        <select data-ck="modo">${opts(["latido", "objetivo"], c.modo || "objetivo")}</select>
+        <input type="text" data-ck="expresion" value="${esc(c.expresion)}" placeholder="0 8 * * *">
+        <label style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input type="checkbox" data-ck="activo" ${c.activo ? "checked" : ""}> activo</label>
+      </div>
+      <textarea data-ck="objetivo" placeholder="qué debe hacer">${esc(c.objetivo)}</textarea>
+      <div class="row"><button class="x" data-delcron="${i}">Eliminar</button></div>
+    </div>`).join("") || `<p class="muted">Sin tareas programadas.</p>`;
+  for (const b of $("cronList").querySelectorAll("button[data-delcron]")) b.onclick = () => { leerCron(); cfg.cron.splice(Number(b.dataset.delcron), 1); pintarConfig(); };
+  // claves
+  $("keysForm").innerHTML = KEYS.map(([k, label]) => `<div class="keyrow"><label>${label}</label>
+    <input type="password" data-key="${k}" placeholder="${claves[k] ? "configurada — escribe para sustituir" : "pega aquí la clave"}" autocomplete="off">
+    <span class="st ${claves[k] ? "ok" : ""}" style="color:${claves[k] ? "var(--ok)" : "var(--muted)"}">${claves[k] ? "✔ configurada" : "✘ sin clave"}${claves[k] ? ` · <a href="#" data-borrar="${k}" style="color:var(--bad)">borrar</a>` : ""}</span></div>`).join("");
+  for (const a of $("keysForm").querySelectorAll("a[data-borrar]")) a.onclick = async (e) => {
+    e.preventDefault();
+    if (!confirm("¿Borrar la clave " + a.dataset.borrar + "?")) return;
+    await fetch("/api/keys", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ [a.dataset.borrar]: null }) });
+    const r = await (await fetch("/api/config")).json(); claves = r.claves; pintarConfig(); cargarEstado();
+  };
+  // json
+  $("cfgJson").value = JSON.stringify(cfg, null, 2);
+}
+
+function leerRoles() {
+  for (const el of $("rolesForm").querySelectorAll("[data-rol]")) {
+    const rc = (cfg.roles[el.dataset.rol] ??= {});
+    if (el.dataset.k === "effort") { if (el.value) rc.effort = el.value; else delete rc.effort; }
+    else rc[el.dataset.k] = el.value.trim();
+  }
+  cfg.workspace = $("cfgWorkspace").value.trim() || "./workspace";
+}
+function leerLimites() {
+  for (const k of Object.keys(cfg.limites)) { const el = $("lim_" + k); if (el) cfg.limites[k] = Number(el.value); }
+  cfg.pruebas = { obligatorias: $("pr_obligatorias").checked, comando: $("pr_comando").value.trim(), timeoutSeg: Number($("pr_timeoutSeg").value) || 300 };
+  cfg.git = Object.fromEntries(["activo", "ramaPorObjetivo", "commitPorTarea", "push", "pullRequest"].map((k) => [k, $("git_" + k).checked]));
+  cfg.revision = { activo: $("rev_activo").checked };
+}
+function leerPrecios() {
+  const nuevo = {};
+  for (const tr of $("preciosBody").querySelectorAll("tr")) {
+    const prev = cfg.precios[tr.dataset.modelo] || {};
+    const nombre = tr.querySelector("[data-pk=nombre]").value.trim();
+    if (!nombre) continue;
+    nuevo[nombre] = { ...prev, input: Number(tr.querySelector("[data-pk=input]").value), output: Number(tr.querySelector("[data-pk=output]").value), cacheRead: Number(tr.querySelector("[data-pk=cacheRead]").value) };
+  }
+  cfg.precios = nuevo;
+}
+function leerCron() {
+  cfg.cron = [...$("cronList").querySelectorAll(".cronitem")].map((div) => ({
+    nombre: div.querySelector("[data-ck=nombre]").value.trim(),
+    modo: div.querySelector("[data-ck=modo]").value,
+    expresion: div.querySelector("[data-ck=expresion]").value.trim(),
+    activo: div.querySelector("[data-ck=activo]").checked,
+    objetivo: div.querySelector("[data-ck=objetivo]").value.trim(),
+  }));
+}
+
+async function enviarConfig(obj, msgEl) {
+  const r = await fetch("/api/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(obj) });
+  const j = await r.json();
+  if (!r.ok) { msgEl.className = "msg err"; msgEl.textContent = j.error; return false; }
+  cfg = JSON.parse(JSON.stringify(j.config)); pintarConfig(); cargarEstado();
+  msgEl.className = "msg ok"; msgEl.textContent = "Guardado y aplicado.";
+  return true;
+}
+
+$("abrirConfig").onclick = abrirConfig;
+$("cerrarConfig").onclick = () => $("modal").classList.remove("open");
+$("modal").onclick = (e) => { if (e.target === $("modal")) $("modal").classList.remove("open"); };
+for (const b of $("tabs").querySelectorAll("button")) b.onclick = () => {
+  for (const x of $("tabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
+  for (const p of document.querySelectorAll(".pane")) p.classList.toggle("on", p.dataset.pane === b.dataset.tab);
+};
+$("addPrecio").onclick = () => { leerPrecios(); cfg.precios["nuevo-modelo"] = { input: 1, output: 5, cacheRead: 0.1 }; pintarConfig(); };
+$("addCron").onclick = () => { leerCron(); cfg.cron.push({ nombre: "tarea-" + (cfg.cron.length + 1), activo: false, modo: "latido", expresion: "0 * * * *", objetivo: "" }); pintarConfig(); };
+$("guardarConfig").onclick = () => { leerRoles(); leerLimites(); leerPrecios(); leerCron(); enviarConfig(cfg, $("msgConfig")); };
+$("guardarJson").onclick = () => {
+  let obj; try { obj = JSON.parse($("cfgJson").value); } catch (e) { $("msgJson").className = "msg err"; $("msgJson").textContent = "JSON inválido: " + e.message; return; }
+  enviarConfig(obj, $("msgJson"));
+};
+$("guardarClaves").onclick = async () => {
+  const body = {};
+  for (const inp of $("keysForm").querySelectorAll("input[data-key]")) if (inp.value.trim()) body[inp.dataset.key] = inp.value.trim();
+  if (!Object.keys(body).length) { $("msgClaves").className = "msg"; $("msgClaves").textContent = "No has escrito ninguna clave."; return; }
+  const r = await fetch("/api/keys", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) { $("msgClaves").className = "msg err"; $("msgClaves").textContent = j.error; return; }
+  claves = j.claves; pintarConfig(); cargarEstado();
+  $("msgClaves").className = "msg ok"; $("msgClaves").textContent = "Claves guardadas.";
+};
+
+const es = new EventSource("/api/events");
+es.onmessage = (m) => {
+  const ev = JSON.parse(m.data);
+  logEvents.push(ev);
+  pintarLog();
+  eventoVivo(ev);
+  if (ev.type === "run.finished") estado.mesUsd = (estado.mesUsd || 0) + ((ev.data && ev.data.run && ev.data.run.costeUsd) || 0);
+  if (ev.type === "git" || ev.type === "run.finished") cargarRepo();
+  if (ev.data && ev.data.run) {
+    estado.activo = ev.type === "run.finished" ? null : ev.data.run;
+    if (ev.type === "run.finished") {
+      estado.runs = [ev.data.run, ...estado.runs.filter((r) => r.id !== ev.data.run.id)];
+    }
+    mostrarRun(ev.data.run);
+    actualizarBotones();
+  } else if (ev.type === "agent.call" && runSel && runSel.id === ev.runId) {
+    $("coste").textContent = usd(ev.data.totalUsd);
+  }
+};
+cargarEstado();
+</script>
+</body>
+</html>

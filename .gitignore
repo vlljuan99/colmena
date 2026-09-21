@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+data/runs/*.json
+workspace/*
+!workspace/.gitkeep
+!workspace/AGENTS.md
+release/
+build/icon.ico
+logs/

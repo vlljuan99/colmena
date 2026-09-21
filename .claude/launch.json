@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "colmena-mock", "runtimeExecutable": "npx", "runtimeArgs": ["tsx", "src/server.ts"], "port": 4180, "env": { "COLMENA_MOCK": "1" } },
+    { "name": "colmena", "runtimeExecutable": "npx", "runtimeArgs": ["tsx", "src/server.ts"], "port": 4180 }
+  ]
+}

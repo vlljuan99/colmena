@@ -1,0 +1,72 @@
+{
+  "name": "colmena",
+  "version": "0.1.0",
+  "description": "Empresa de IA 24/7 en tu PC: un planificador delega en ejecutores baratos y un revisor valida el trabajo.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "goal": "tsx src/cli.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "app": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win",
+    "icon": "python build/make-icon.py"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "croner": "^9.0.0",
+    "openai": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "electron": "^44.4.1",
+    "electron-builder": "^26.15.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "main": "electron/main.cjs",
+  "author": "Colmena",
+  "build": {
+    "appId": "com.colmena.app",
+    "productName": "Colmena",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "asar": false,
+    "files": [
+      "dist/**",
+      "public/**",
+      "electron/**",
+      "build/icon.png",
+      "colmena.config.json",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Colmena"
+    }
+  }
+}

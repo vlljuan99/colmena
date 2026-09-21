@@ -1,0 +1,142 @@
+{
+  "workspace": "./workspace",
+  "roles": {
+    "planificador": {
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "low"
+    },
+    "ejecutor": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "revisor": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "entrevistador": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-5",
+      "effort": "medium"
+    }
+  },
+  "limites": {
+    "maxTareasPorObjetivo": 8,
+    "maxPasosPorTarea": 30,
+    "maxReintentosPorTarea": 2,
+    "maxCosteUsdPorObjetivo": 10,
+    "timeoutComandoSeg": 120,
+    "compactarTokens": 120000,
+    "ejecutoresParalelos": 2
+  },
+  "precios": {
+    "gpt-6-astra": {
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1,
+      "cliff": {
+        "inputTokens": 272000,
+        "input": 20,
+        "output": 75
+      }
+    },
+    "deepseek-flash": {
+      "input": 0.3,
+      "output": 1.2,
+      "cacheRead": 0.006,
+      "offPeak": {
+        "input": 0.15,
+        "output": 0.6,
+        "cacheRead": 0.003
+      },
+      "peakHoursUTC": [
+        [
+          1,
+          4
+        ],
+        [
+          6,
+          10
+        ]
+      ],
+      "peakDaysUTC": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "claude-opus-5": {
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5
+    },
+    "claude-sonnet-5": {
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2
+    },
+    "deepseek-v4.1-flash": {
+      "input": 0.3,
+      "output": 1.2,
+      "cacheRead": 0.006,
+      "offPeak": {
+        "input": 0.15,
+        "output": 0.6,
+        "cacheRead": 0.003
+      },
+      "peakHoursUTC": [
+        [
+          1,
+          4
+        ],
+        [
+          6,
+          10
+        ]
+      ],
+      "peakDaysUTC": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  },
+  "cron": [
+    {
+      "nombre": "latido-cada-hora",
+      "modo": "latido",
+      "expresion": "0 * * * *",
+      "activo": false,
+      "objetivo": "Comprueba si hay archivos nuevos o modificados en la última hora y si existe un TODO.md con tareas pendientes. Resume en 3 líneas; si no hay nada, di: sin novedades."
+    },
+    {
+      "nombre": "informe-diario",
+      "modo": "objetivo",
+      "expresion": "0 8 * * *",
+      "activo": false,
+      "objetivo": "Revisa los archivos del workspace y escribe un informe INFORME.md con el estado y próximos pasos."
+    }
+  ],
+  "asistente": {
+    "activo": true
+  },
+  "pruebas": {
+    "obligatorias": true,
+    "comando": "",
+    "timeoutSeg": 300
+  },
+  "git": {
+    "activo": true,
+    "ramaPorObjetivo": true,
+    "commitPorTarea": true,
+    "push": false,
+    "pullRequest": false
+  },
+  "revision": {
+    "activo": true
+  }
+}
