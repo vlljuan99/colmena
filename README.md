@@ -13,21 +13,45 @@ Los tres roles son independientes: cualquiera puede ser OpenAI, DeepSeek o Anthr
 
 Colmena se empaqueta como una app de Windows con Electron. Al abrirla arranca el servidor por dentro y muestra el panel en su propia ventana. Todo se configura desde el botón **⚙ Configuración** (roles, límites, precios, cron y claves API); no hay que tocar ningún archivo.
 
-```bash
-npm install
-npm run dist
-```
+### Cómo se crea el ejecutable, paso a paso
 
-Genera en `release/`:
+**Requisitos** (una sola vez): [Node.js](https://nodejs.org) 20 o superior (probado con 24) y [Git](https://git-scm.com). Python no hace falta para usar la app; solo si quieres regenerar el icono.
 
-- `win-unpacked/Colmena.exe` — la app lista para usar (y `Colmena-0.1.0-win.zip` con esa misma carpeta para copiarla a otro PC).
-- `Colmena Setup 0.1.0.exe` — instalador clásico con acceso directo.
+1. **Clonar e instalar dependencias** (descarga también Electron, ~100 MB):
 
-> **Smart App Control (Windows 11)**: si está activado, bloquea ejecutables sin firma, incluido el instalador. En ese caso usa `win-unpacked/Colmena.exe` (o el zip): ese ejecutable es el binario oficial de Electron sin modificar, que Windows sí deja ejecutar. Por eso el icono de la ventana es el de Electron y no el panal.
+   ```bash
+   git clone https://github.com/vlljuan99/colmena.git
+   cd colmena
+   npm install
+   ```
 
-Los datos de la app (config, claves, historial, workspace, logs) viven en `%APPDATA%\colmena`.
+2. **Generar el ejecutable**:
 
-Para probar en desarrollo sin empaquetar:
+   ```bash
+   npm run dist
+   ```
+
+   Este comando hace dos cosas: `tsc` compila TypeScript de `src/` a JavaScript en `dist/`, y `electron-builder --win` empaqueta `dist/`, `public/`, `electron/`, `colmena.config.json` y las dependencias de producción junto con el runtime de Electron. Tarda 1–3 minutos la primera vez (descarga Electron y las herramientas de empaquetado en caché) y menos las siguientes.
+
+3. **Resultado**, en la carpeta `release/`:
+
+   | Archivo | Qué es |
+   |---|---|
+   | `win-unpacked/Colmena.exe` | La app lista para ejecutar. Crea un acceso directo a este archivo. |
+   | `Colmena-0.1.0-win.zip` | La misma carpeta comprimida, para llevarla a otro PC (descomprimir y ejecutar `Colmena.exe`). |
+   | `Colmena Setup 0.1.0.exe` | Instalador clásico (elige carpeta, crea acceso directo en escritorio y menú Inicio, se desinstala desde Windows). |
+
+4. **Primera ejecución**: la app crea `%APPDATA%\colmena` con la configuración por defecto, un workspace vacío y `logs/colmena.log`. Ahí es donde van tus claves API (⚙ → Claves API), el historial de ejecuciones y el workspace; nunca dentro de `release/`, así puedes regenerar el ejecutable sin perder nada.
+
+**Cómo funciona por dentro**: `electron/main.cjs` arranca `dist/server.js` como proceso hijo usando el Node embebido en Electron (`ELECTRON_RUN_AS_NODE`), en un puerto libre, con `COLMENA_HOME` apuntando a `%APPDATA%\colmena`; cuando el servidor responde, abre una ventana con el panel. Al cerrar la ventana se cierra también el servidor.
+
+**Para regenerar tras cambiar código**: cierra Colmena (bloquea la carpeta `release/`) y vuelve a ejecutar `npm run dist`. Si cambias `package.json → version`, el nombre de los archivos cambia con ella.
+
+> **Smart App Control (Windows 11)**: si está activado, bloquea ejecutables sin firma de código, incluido el instalador y cualquier `.exe` modificado. Por eso el proyecto empaqueta con `signAndEditExecutable: false`: `win-unpacked/Colmena.exe` es byte a byte el binario oficial de Electron (con reputación conocida), que Windows deja ejecutar. La contrapartida es que el icono de la ventana es el de Electron y no el panal. Para tener icono propio e instalador hace falta desactivar Smart App Control (irreversible sin reinstalar Windows) o firmar el ejecutable con un certificado de código.
+
+> **Otros sistemas**: `electron-builder` también genera paquetes para macOS (`--mac`) y Linux (`--linux`) desde esos sistemas; el código no tiene nada específico de Windows salvo el instalador.
+
+Para probar en desarrollo sin empaquetar (compila y abre la ventana de Electron usando la carpeta del proyecto como datos):
 
 ```bash
 npm run app
