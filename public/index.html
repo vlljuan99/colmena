@@ -147,6 +147,17 @@
   .h247 .g { display:inline-block; animation:gira 4s linear infinite; color:var(--ok) }
   @keyframes gira { to { transform:rotate(360deg) } }
   @media (max-width: 1000px) { .org { grid-template-columns:1fr } .org .side { text-align:left } .obreras { grid-template-columns: repeat(2, 1fr) } .obreras::before { display:none } .obrera::before { display:none } }
+  /* ---- pestañas columna derecha ---- */
+  .vtabs { display:flex; gap:6px; margin-bottom:10px; border-bottom:1px solid var(--line) }
+  .vtabs button { background:transparent; color:var(--muted); border:1px solid transparent; border-bottom:0; border-radius:8px 8px 0 0; padding:8px 14px; font-weight:500 }
+  .vtabs button.on { color:var(--text); border-color:var(--line); background:var(--bg) }
+  .vtabs button .n { display:inline-block; min-width:18px; padding:0 5px; border-radius:99px; background:var(--acc); color:#1a1400; font-size:11px; font-weight:700; margin-left:6px }
+  .vpane { display:none } .vpane.on { display:block }
+  .estadochat .msgs { max-height:58vh; min-height:260px }
+  .estadochat .b.a { max-width:92% }
+  .sugerencias { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px }
+  .sugerencias button { background:transparent; color:var(--muted); border:1px solid var(--line); padding:4px 9px; font-size:12px; font-weight:500 }
+  .sugerencias button:hover { color:var(--text); border-color:var(--acc) }
   /* ---- asistente de objetivos ---- */
   .toggle { display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px; cursor:pointer }
   .toggle input { accent-color:var(--acc) }
@@ -404,11 +415,34 @@
   </aside>
 
   <section>
+    <div class="vtabs">
+      <button data-vtab="ejecucion" class="on">Ejecución</button>
+      <button data-vtab="chat">💬 Pregunta a la colmena <span class="n" id="chatEstadoN" style="display:none">0</span></button>
+    </div>
+    <div class="vpane on" data-vpane="ejecucion">
     <div class="card">
       <h2 id="tituloRun">Ejecución</h2>
       <div id="resumen" class="muted"></div>
       <div id="tareas" style="margin-top:10px"></div>
       <div id="final" class="final"></div>
+    </div>
+    </div>
+    <div class="vpane" data-vpane="chat">
+      <div class="card chat estadochat" style="margin-top:0;border-color:var(--line)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <h2 style="margin:0">Pregunta a la colmena</h2>
+          <span class="muted" id="consultorModelo" style="font-size:12px"></span>
+          <div class="spacer"></div>
+          <button class="sec" id="ecNueva" style="padding:4px 10px;font-size:12px">Nueva conversación</button>
+        </div>
+        <div class="sugerencias" id="ecSugerencias"></div>
+        <div class="msgs" id="ecMsgs"></div>
+        <div class="chatin">
+          <textarea id="ecInput" placeholder="¿Qué ha pasado con la última ejecución? ¿Dónde está el trabajo? ¿Cuánto llevo gastado?  (Enter envía)"></textarea>
+          <button id="ecEnviar">Enviar</button>
+        </div>
+        <div class="row" style="justify-content:space-between"><span class="msg" id="ecEstado"></span><span class="muted" style="font-size:11px">Responde con el estado real de Colmena (ejecuciones, git, costes). Solo lectura.</span></div>
+      </div>
     </div>
     <div class="grid2" style="margin-top:16px">
       <div class="card">
@@ -448,6 +482,7 @@ async function cargarEstado() {
     ? s.cron.map((j) => `<div><b>${esc(j.nombre)}</b> <span class="muted">${esc(j.modo)} · ${esc(j.expresion)} · próxima ${esc((j.proxima || "").replace("T", " ").slice(0, 16))}</span></div>`).join("")
     : SIN_CRON;
   $("asistenteOn").checked = !!(s.asistente && s.asistente.activo);
+  $("consultorModelo").textContent = s.roles.consultor ? "· " + s.roles.consultor.model : "";
   if (s.borrador && !$("objetivo").value.trim()) { $("objetivo").value = s.borrador; $("objetivo").style.minHeight = "220px"; }
   $("asistenteModelo").textContent = s.roles.entrevistador ? "· " + s.roles.entrevistador.model : "";
   logEvents = s.eventos || [];
@@ -542,6 +577,46 @@ $("asistenteOn").onchange = async () => {
   await fetch("/api/config", { method: "PUT", headers: { "content-type": "application/json" },
     body: JSON.stringify({ ...(await (await fetch("/api/config")).json()).config, asistente: { activo: $("asistenteOn").checked } }) });
 };
+
+// ================= pestañas + chat de estado =================
+for (const b of document.querySelectorAll(".vtabs button")) b.onclick = () => {
+  for (const x of document.querySelectorAll(".vtabs button")) x.classList.toggle("on", x === b);
+  for (const p of document.querySelectorAll(".vpane")) p.classList.toggle("on", p.dataset.vpane === b.dataset.vtab);
+  if (b.dataset.vtab === "chat") { $("chatEstadoN").style.display = "none"; $("chatEstadoN").textContent = "0"; $("ecInput").focus(); }
+};
+const ec = { historial: [], usd: 0, ocupado: false };
+const EC_SUGERENCIAS = ["¿Qué ha pasado con la última ejecución?", "¿Dónde está el trabajo y cómo lo subo a GitHub?", "¿Cuánto llevo gastado este mes y en qué?", "¿Qué quedó pendiente y qué hago ahora?"];
+
+function pintarEC() {
+  $("ecMsgs").innerHTML = ec.historial.map((t) => `<div class="b ${t.role === "user" ? "u" : "a"}">${esc(t.content)}</div>`).join("")
+    + (ec.ocupado ? `<div class="pensando">consultando el estado…</div>` : "")
+    + (!ec.historial.length && !ec.ocupado ? `<div class="muted" style="font-size:13px">Pregúntame por cualquier ejecución, tarea, coste, rama o archivo del workspace. Uso un modelo barato y solo leo.</div>` : "");
+  $("ecMsgs").scrollTop = $("ecMsgs").scrollHeight;
+  $("ecEstado").textContent = ec.historial.length ? "coste de la conversación " + usd(ec.usd) : "";
+  $("ecEnviar").disabled = ec.ocupado;
+  $("ecSugerencias").innerHTML = ec.historial.length ? "" : EC_SUGERENCIAS.map((q) => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  for (const b of $("ecSugerencias").querySelectorAll("button")) b.onclick = () => enviarEC(b.dataset.q);
+  $("consultorModelo").textContent = estado.roles && estado.roles.consultor ? "· " + estado.roles.consultor.model : "";
+}
+
+async function enviarEC(texto) {
+  if (ec.ocupado || !texto.trim()) return;
+  ec.historial.push({ role: "user", content: texto.trim() });
+  ec.ocupado = true; pintarEC();
+  try {
+    const r = await fetch("/api/consultor", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ historial: ec.historial }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    ec.historial.push({ role: "assistant", content: j.mensaje });
+    ec.usd += j.usd || 0;
+    if (!document.querySelector('[data-vpane="chat"]').classList.contains("on")) { const n = $("chatEstadoN"); n.style.display = ""; n.textContent = String(Number(n.textContent) + 1); }
+  } catch (e) { ec.historial.push({ role: "assistant", content: "⚠ " + e.message }); }
+  ec.ocupado = false; pintarEC();
+}
+$("ecEnviar").onclick = () => { const t = $("ecInput").value; $("ecInput").value = ""; enviarEC(t); };
+$("ecInput").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("ecEnviar").click(); } };
+$("ecNueva").onclick = () => { ec.historial = []; ec.usd = 0; pintarEC(); };
+pintarEC();
 
 // ================= repositorio =================
 const GIT_OPTS = [["ramaPorObjetivo", "rama por objetivo"], ["commitPorTarea", "commit por tarea"], ["push", "push al terminar"], ["pullRequest", "abrir pull request"]];
@@ -821,7 +896,7 @@ function pintar247() {
 setInterval(pintar247, 30000);
 
 // ================= configuración =================
-const ROLES = ["planificador", "ejecutor", "revisor", "entrevistador"];
+const ROLES = ["planificador", "ejecutor", "revisor", "entrevistador", "consultor"];
 const PROVEEDORES = ["openai", "deepseek", "anthropic", "opencode"];
 const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];
 const KEYS = [["OPENAI_API_KEY", "OpenAI (Astra)"], ["DEEPSEEK_API_KEY", "DeepSeek"], ["ANTHROPIC_API_KEY", "Anthropic (Claude)"], ["OPENCODE_API_KEY", "OpenCode Go"], ["GITHUB_TOKEN", "GitHub (token para PRs)"]];

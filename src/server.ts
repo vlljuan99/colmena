@@ -3,6 +3,7 @@ import http from "node:http";
 import path from "node:path";
 import { turnoAsistente, type TurnoAsistente } from "./asistente.js";
 import { bus, type ColmenaEvent } from "./bus.js";
+import { turnoConsultor, type TurnoConsultor } from "./consultor.js";
 import { config, HOME, KEY_VARS, keyStatus, PKG_ROOT, saveConfig, saveKeys, type Config, type KeyVar } from "./config.js";
 import { continuarRun, detenerRun, ejecutarLatido, ejecutarObjetivo, runActivo } from "./orchestrator.js";
 import { clonar, estadoRepo, listarReposGitHub, repoDir, reposDisponibles } from "./git.js";
@@ -93,6 +94,14 @@ const server = http.createServer(async (req, res) => {
       const historial = (Array.isArray(body.historial) ? body.historial : []) as TurnoAsistente[];
       if (!historial.length) return json(res, 400, { error: "Falta el historial" });
       return json(res, 200, await turnoAsistente(historial));
+    }
+
+    // Chat de estado (rol consultor, barato). Sin estado: el cliente manda el historial.
+    if (p === "/api/consultor" && req.method === "POST") {
+      const body = await readBody(req);
+      const historial = (Array.isArray(body.historial) ? body.historial : []) as TurnoConsultor[];
+      if (!historial.length) return json(res, 400, { error: "Falta el historial" });
+      return json(res, 200, await turnoConsultor(historial));
     }
 
     // ---- repositorio ----

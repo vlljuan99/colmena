@@ -224,6 +224,7 @@ export async function ejecutarObjetivo(objetivo: string, origen: Run["origen"] =
       run.informeFinal = "Ejecución detenida por presupuesto. Tareas hechas: " + run.tareas.filter((t) => t.estado === "hecha").map((t) => t.titulo).join("; ") +
         ". Pendientes: " + pendientes.map((t) => t.titulo).join("; ") + ".";
       bus.emitEvent(run.id, "run.error", run.error, { run });
+      await cerrarGit(run);   // lo aprobado ya está commiteado; si hay push/PR configurados, se sube igualmente
       return run;
     }
     for (const t of run.tareas) if (t.estado === "pendiente" && !ctl.stop) { t.estado = "fallida"; t.informe = "Bloqueada: dependencias no completadas."; }
@@ -246,9 +247,21 @@ export async function ejecutarObjetivo(objetivo: string, origen: Run["origen"] =
       await cerrarGit(run);
     }
   } catch (e) {
-    run.estado = "error";
-    run.error = (e as Error).message;
-    bus.emitEvent(run.id, "run.error", run.error, { run });
+    if (e instanceof PresupuestoAgotado) {
+      // Se agotó fuera de las tareas (planificando o redactando el informe): lo hecho se conserva y se sube si procede.
+      const todasHechas = run.tareas.length > 0 && run.tareas.every((t) => t.estado === "hecha");
+      run.estado = todasHechas ? "terminada" : "detenida";
+      run.error = todasHechas ? undefined : e.message;
+      run.informeFinal ??= (todasHechas ? "Todas las tareas aprobadas. " : "Ejecución detenida por presupuesto. ") +
+        "Hechas: " + run.tareas.filter((t) => t.estado === "hecha").map((t) => t.titulo).join("; ") + "." +
+        (todasHechas ? " (El informe final no se redactó por presupuesto: $" + e.gastado.toFixed(2) + " de $" + e.tope + ".)" : "");
+      bus.emitEvent(run.id, todasHechas ? "log" : "run.error", e.message, { run });
+      await cerrarGit(run);
+    } else {
+      run.estado = "error";
+      run.error = (e as Error).message;
+      bus.emitEvent(run.id, "run.error", run.error, { run });
+    }
   } finally {
     run.fin = new Date().toISOString();
     sync();

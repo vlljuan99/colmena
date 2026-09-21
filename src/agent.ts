@@ -19,6 +19,7 @@ export interface AgentRun {
   maxSteps?: number;
   cost: CostTracker;
   shouldStop?: () => boolean;
+  ejecutarTool?: (name: string, args: Record<string, unknown>) => Promise<string | undefined>;   // herramientas propias del llamante
 }
 
 export class PresupuestoAgotado extends Error {
@@ -72,7 +73,7 @@ export async function runAgent(a: AgentRun): Promise<string> {
     for (const call of res.toolCalls) {
       const preview = JSON.stringify(call.args).slice(0, 200);
       bus.emitEvent(a.runId, "agent.tool", a.roleLabel + " → " + call.name + " " + preview, { role: a.roleLabel, tool: call.name, args: call.args, taskId: a.taskId });
-      const result = await runTool(call.name, call.args);
+      const result = (await a.ejecutarTool?.(call.name, call.args)) ?? (await runTool(call.name, call.args));
       messages.push({ role: "tool", content: result, toolCallId: call.id });
     }
 

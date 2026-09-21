@@ -18,6 +18,10 @@
       "provider": "anthropic",
       "model": "claude-sonnet-5",
       "effort": "medium"
+    },
+    "consultor": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
     }
   },
   "limites": {

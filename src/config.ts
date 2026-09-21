@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export type ProviderName = "openai" | "deepseek" | "anthropic" | "opencode" | "mock";
-export type RoleName = "planificador" | "ejecutor" | "revisor" | "entrevistador";
+export type RoleName = "planificador" | "ejecutor" | "revisor" | "entrevistador" | "consultor";
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 // effort: esfuerzo de razonamiento (OpenAI reasoning_effort / Claude output_config.effort). El hilo recomienda "low" para Astra en el día a día.
@@ -106,6 +106,7 @@ function readConfigFile(): Config {
   cfg.limites.compactarTokens ??= 120000;
   cfg.limites.ejecutoresParalelos ??= 2;
   cfg.roles.entrevistador ??= { provider: "anthropic", model: "claude-sonnet-5", effort: "medium" };
+  cfg.roles.consultor ??= { provider: "deepseek", model: "deepseek-flash" };   // chat de estado: barato
   cfg.asistente ??= { activo: true };
   cfg.pruebas = { ...{ obligatorias: true, comando: "", timeoutSeg: 300 }, ...(cfg.pruebas ?? {}) } as Config["pruebas"];
   cfg.revision ??= { activo: true };
@@ -132,7 +133,7 @@ export function saveConfig(nueva: Config) {
   // Archivos de versiones anteriores pueden no traer roles/secciones nuevas: se completan con los valores actuales.
   nueva.roles = { ...config.roles, ...(nueva.roles ?? {}) };
   nueva.limites = { ...config.limites, ...(nueva.limites ?? {}) };
-  const roles: RoleName[] = ["planificador", "ejecutor", "revisor", "entrevistador"];
+  const roles: RoleName[] = ["planificador", "ejecutor", "revisor", "entrevistador", "consultor"];
   for (const r of roles) {
     const rc = nueva.roles[r];
     if (!rc || !rc.provider || !rc.model) throw new Error("El rol '" + r + "' necesita proveedor y modelo.");

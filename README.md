@@ -87,9 +87,13 @@ Con el interruptor **"Pulir el objetivo con el asistente antes de lanzar"** acti
 
 Modelo por defecto: `claude-sonnet-5` (buenas preguntas, buen español, una entrevista cuesta 1–2 céntimos). Cámbialo en ⚙ → Roles → entrevistador; `deepseek-flash` si prefieres coste casi cero.
 
+## Pregunta a la colmena (chat de estado)
+
+Pestaña **💬 Pregunta a la colmena** en la columna derecha: un chatbot con el rol `consultor` (DeepSeek Flash por defecto, céntimos por conversación) que recibe en cada turno el estado real de Colmena —configuración, gasto del mes, repositorio activo, ejecución en curso, últimas ejecuciones con sus tareas y los últimos eventos— y puede pedir el detalle completo de una ejecución o leer archivos del workspace. Sirve para "¿qué pasó con la última ejecución?", "¿dónde está el trabajo?", "¿cuánto llevo gastado?". Solo lectura.
+
 ## Presupuesto y continuar
 
-Cada objetivo tiene un tope en USD (10 por defecto; ⚙ → Límites). Al alcanzarlo, Colmena deja de arrancar tareas, marca las interrumpidas como pendientes y detiene la ejecución con el detalle de lo hecho y lo que falta. El botón **▶ Continuar** relanza el objetivo con un resumen de lo aprobado para que el planificador solo planifique lo que falta (sirve también tras una parada manual o un error). Sube el tope antes si hace falta.
+Cada objetivo tiene un tope en USD (10 por defecto; ⚙ → Límites). Al alcanzarlo, Colmena deja de arrancar tareas, marca las interrumpidas como pendientes y detiene la ejecución con el detalle de lo hecho y lo que falta. Si el presupuesto se agota cuando ya están todas las tareas aprobadas (p. ej. redactando el informe final), la ejecución queda **terminada** con un informe automático; en cualquier caso, si push/PR están activados, lo aprobado se sube igualmente. El botón **▶ Continuar** relanza el objetivo con un resumen de lo aprobado para que el planificador solo planifique lo que falta (sirve también tras una parada manual o un error). Sube el tope antes si hace falta.
 
 Con Claude, la caché de prompts cubre todo el historial de cada bucle (system + mensajes + resultados de herramientas), no solo el system prompt: en revisiones largas es la diferencia entre pagar cada archivo leído una vez o en cada paso.
 

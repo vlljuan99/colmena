@@ -35,6 +35,12 @@ export function mockProvider(): Provider {
         return { text: JSON.stringify({ mensaje: "Listo: objetivo redactado (simulado).", objetivo }), toolCalls: [], usage, stopReason: "stop" };
       }
 
+      if (sys.includes("[ROL: consultor]")) {
+        const pregunta = req.messages[req.messages.length - 1].content;
+        const n = (pregunta.match(/^- 20\d\d-/gm) || []).length;
+        return { text: "Respuesta simulada: veo " + n + " ejecuciones en el estado. Pregunta: " + pregunta.split("PREGUNTA DEL USUARIO:").pop()?.trim().slice(0, 80), toolCalls: [], usage, stopReason: "stop" };
+      }
+
       if (sys.includes("[ROL: revisor]")) {
         return { text: JSON.stringify({ aprobado: true, comentarios: "Correcto (simulado)." }), toolCalls: [], usage, stopReason: "stop" };
       }
