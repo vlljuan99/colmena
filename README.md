@@ -9,6 +9,8 @@ herramientas (archivos, shell, web) → revisor (Claude) aprueba o devuelve con 
 
 Los tres roles son independientes: cualquiera puede ser OpenAI, DeepSeek o Anthropic. Se cambia en `colmena.config.json`.
 
+> **¿Nuevo aquí?** Lee el [Manual para early adopters](docs/MANUAL.md): instalación, primer objetivo en 15 minutos, repos, costes y problemas frecuentes. Descarga el ejecutable en [Releases](https://github.com/vlljuan99/colmena/releases).
+
 ## Como programa de escritorio (recomendado)
 
 Colmena se empaqueta como una app de Windows con Electron. Al abrirla arranca el servidor por dentro y muestra el panel en su propia ventana. Todo se configura desde el botón **⚙ Configuración** (roles, límites, precios, cron y claves API); no hay que tocar ningún archivo.
